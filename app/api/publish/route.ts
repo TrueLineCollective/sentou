@@ -31,6 +31,7 @@ export async function POST(req: Request) {
     allowedDomains: domains && domains.length ? domains : null,
     expiresAt,
   };
-  const link = await createLink(getStore(), html, gate);
+  const track = body.track === true;
+  const link = await createLink(getStore(), html, gate, track);
   return Response.json({ id: link.id, slug: link.slug, url: linkUrl(link.slug), version: 1 });
 }
