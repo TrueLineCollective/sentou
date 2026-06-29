@@ -2,6 +2,7 @@ import { getLinkBySlug, recordViewer } from "@/lib/links";
 import { getStore, linkUrl } from "@/lib/server-store";
 import { evaluateAccess } from "@/lib/access";
 import { signAccessToken } from "@/lib/token";
+import { cookieName } from "@/lib/cookies";
 
 export async function POST(req: Request) {
   // The shipped viewer submits a native HTML <form> (application/x-www-form-urlencoded);
@@ -44,7 +45,7 @@ export async function POST(req: Request) {
   await recordViewer(getStore(), link.id, email);
   const token = signAccessToken({ linkId: link.id, email });
   const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
-  const cookie = `sentou_${slug}=${encodeURIComponent(token)}; HttpOnly; Path=/; SameSite=Lax${secure}`;
+  const cookie = `${cookieName(slug)}=${encodeURIComponent(token)}; HttpOnly; Path=/; SameSite=Lax${secure}`;
 
   if (isForm) {
     return new Response(null, { status: 303, headers: { location: `/v/${slug}`, "set-cookie": cookie } });
