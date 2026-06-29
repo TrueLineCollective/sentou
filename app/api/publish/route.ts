@@ -34,6 +34,7 @@ export async function POST(req: Request) {
     expiresAt,
   };
   const track = body.track === true;
-  const link = await createLink(getStore(), html, gate, track);
+  const verifyEmail = body.verifyEmail === true;
+  const link = await createLink(getStore(), html, gate, track, verifyEmail);
   return Response.json({ id: link.id, slug: link.slug, url: linkUrl(link.slug), version: 1 });
 }
