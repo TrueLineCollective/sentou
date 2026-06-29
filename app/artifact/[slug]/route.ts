@@ -7,7 +7,11 @@ function readCookie(req: Request, name: string): string | null {
   const raw = req.headers.get("cookie") ?? "";
   for (const part of raw.split(";")) {
     const [k, ...v] = part.trim().split("=");
-    if (k === name) return decodeURIComponent(v.join("="));
+    if (k === name) {
+      // A malformed percent-encoding (e.g. %zz) would throw URIError; treat such a
+      // cookie as absent so the request falls through to the gate instead of 500ing.
+      try { return decodeURIComponent(v.join("=")); } catch { return null; }
+    }
   }
   return null;
 }

@@ -66,4 +66,27 @@ describe("api routes", () => {
     expect(link!.gate.requireEmail).toBe(true);
     expect(link!.gate.allowedDomains).toEqual(["acme.com"]);
   });
+
+  it("sanitizes non-string allowedDomains instead of storing a gate that 500s on access", async () => {
+    const { POST: publish } = await import("@/app/api/publish/route");
+    const { getLinkBySlug } = await import("@/lib/links");
+    const { getStore } = await import("@/lib/server-store");
+    const res = await publish(new Request("http://t/api/publish", {
+      method: "POST",
+      body: JSON.stringify({ html: "<h1>x</h1>", requireEmail: true, allowedDomains: [123, "", "acme.com"] }),
+    }));
+    expect(res.status).toBe(200);
+    const created = await res.json();
+    const link = await getLinkBySlug(getStore(), created.slug);
+    expect(link!.gate.allowedDomains).toEqual(["acme.com"]);
+  });
+
+  it("400s publish with a malformed expiresAt instead of silently never expiring", async () => {
+    const { POST: publish } = await import("@/app/api/publish/route");
+    const res = await publish(new Request("http://t/api/publish", {
+      method: "POST",
+      body: JSON.stringify({ html: "<h1>x</h1>", expiresAt: "not-a-real-date" }),
+    }));
+    expect(res.status).toBe(400);
+  });
 });
