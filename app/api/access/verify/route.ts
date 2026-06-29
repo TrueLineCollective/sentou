@@ -2,10 +2,11 @@ import { getLinkBySlug, recordViewer, bumpVerifyAttempt, resetVerifyAttempt } fr
 import { getStore, linkUrl } from "@/lib/server-store";
 import { evaluateAccess } from "@/lib/access";
 import { openVerify } from "@/lib/verify";
-import { signAccessToken } from "@/lib/token";
+import { signAccessToken, ACCESS_TTL_MS } from "@/lib/token";
 import { cookieName, verifyCookieName } from "@/lib/cookies";
 import { cleanEmail } from "@/lib/email-format";
 import { rateLimit, clientIp } from "@/lib/rate-limit";
+import { secureCookies } from "@/lib/owner";
 import { timingSafeEqual } from "node:crypto";
 
 function readCookie(req: Request, name: string): string | null {
@@ -87,8 +88,8 @@ export async function POST(req: Request) {
   // verified addresses. The token is marked verified so tracking can attribute opens to it.
   await recordViewer(getStore(), link.id, email);
   const token = signAccessToken({ linkId: link.id, email, verified: true });
-  const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
-  const cookie = `${cookieName(slug)}=${encodeURIComponent(token)}; HttpOnly; Path=/; SameSite=Lax${secure}`;
+  const secure = secureCookies() ? "; Secure" : "";
+  const cookie = `${cookieName(slug)}=${encodeURIComponent(token)}; HttpOnly; Path=/; SameSite=Lax; Max-Age=${ACCESS_TTL_MS / 1000}${secure}`;
   // Single-use: now that an access cookie is issued, kill the verify cookie so its code
   // can't be replayed within the remaining TTL.
   const clearVerify = `${verifyCookieName(slug)}=; HttpOnly; Path=/; SameSite=Lax; Max-Age=0${secure}`;
