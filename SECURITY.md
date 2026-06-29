@@ -24,7 +24,7 @@ Please do not run automated scanners against any hosted instance you do not own.
 How hard the email gate locks depends on how you configure it:
 
 - **Email verification is available, off by default.** Publish a link with `verifyEmail: true` and configure an email sender (`SENTOU_RESEND_KEY` + `SENTOU_EMAIL_FROM`), and a gated link emails a one-time code and only grants access once the recipient enters it. That makes the email a verified address rather than a typed claim.
-- **Without verification, the email gate is record-only.** A gated link that does not opt into verification (or one that does but has no sender configured) records the email someone types and enforces expiry and revocation, but does not confirm the address. In that mode a typed email is a record, not a lock.
+- **Without verification, the email gate is access friction, not a record.** A gated link that does not opt into verification asks for an email and enforces expiry and revocation, but does not confirm the address, and does not store it. Sentou only ever persists a verified email, so an unverified gate's typed email is a key for that session, not a record.
 - **The domain allowlist inherits this.** When verification is on, the allowlist checks a verified address and is a real lock. When it is off, the allowlist rides on an unverified email and is not a hard lock.
 - **The unguessable link, expiry, and revoke are always real controls.** They hold no matter what email someone enters, with or without verification. Treat the link itself as a secret.
 

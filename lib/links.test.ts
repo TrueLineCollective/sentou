@@ -28,6 +28,16 @@ describe("links service", () => {
     await expect(republish(store, "nope", "<p>x</p>")).rejects.toThrow("link not found");
   });
 
+  it("dedupes a repeat viewer email instead of growing the array", async () => {
+    const store = createMemoryStore();
+    const link = await createLink(store, "<h1>x</h1>", {
+      requireEmail: true, allowedDomains: null, expiresAt: null, revoked: false,
+    });
+    for (let i = 0; i < 3; i++) await recordViewer(store, link.id, "a@acme.com");
+    const after = await getLinkBySlug(store, link.slug);
+    expect(after!.viewers.filter((v) => v.email === "a@acme.com")).toHaveLength(1);
+  });
+
   it("preserves the gate and recorded viewers across a republish", async () => {
     const store = createMemoryStore();
     const link = await createLink(store, "<h1>v1</h1>", {

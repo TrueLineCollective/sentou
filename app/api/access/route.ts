@@ -1,4 +1,4 @@
-import { getLinkBySlug, recordViewer, resetVerifyAttempt } from "@/lib/links";
+import { getLinkBySlug, resetVerifyAttempt } from "@/lib/links";
 import { getStore, linkUrl } from "@/lib/server-store";
 import { evaluateAccess } from "@/lib/access";
 import { signAccessToken } from "@/lib/token";
@@ -79,8 +79,10 @@ export async function POST(req: Request) {
     return res;
   }
 
-  await recordViewer(store, link.id, email);
-  const token = signAccessToken({ linkId: link.id, email });
+  // Record-only gate: the typed email is access friction, not a proven identity, so we do NOT
+  // persist it. Sentou only ever stores an address it verified. The email rides in the cookie so
+  // this session's domain-allowlist check still works; enable verifyEmail to capture viewers.
+  const token = signAccessToken({ linkId: link.id, email, verified: false });
   const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
   const cookie = `${cookieName(slug)}=${encodeURIComponent(token)}; HttpOnly; Path=/; SameSite=Lax${secure}`;
 
