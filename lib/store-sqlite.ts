@@ -13,6 +13,7 @@ function rowToLink(
   return {
     id: row.id,
     slug: row.slug,
+    ownerUserId: row.ownerUserId ?? null,
     versions: versionRows.map((v) => ({
       version: v.version,
       html: v.html,
@@ -85,7 +86,7 @@ export function createSqliteStore(
           .values({
             id: link.id,
             slug: link.slug,
-            ownerUserId: null,
+            ownerUserId: link.ownerUserId ?? null,
             title: null,
             requireEmail: link.gate.requireEmail,
             allowedDomains: link.gate.allowedDomains,
