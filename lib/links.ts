@@ -1,12 +1,34 @@
 import { nanoid } from "nanoid";
-import type { Gate, Link, LinkStore, ViewEvent } from "@/lib/store";
+import type { Gate, Link, LinkStore, Version, ViewEvent } from "@/lib/store";
 
 export const OPEN_GATE: Gate = {
   requireEmail: false, allowedDomains: null, expiresAt: null, revoked: false,
 };
 
+function latestVersion(link: Link): Version {
+  return link.versions.reduce((a, b) => (b.version > a.version ? b : a));
+}
+
 export function currentHtml(link: Link): string {
-  return link.versions.reduce((a, b) => (b.version > a.version ? b : a)).html;
+  return latestVersion(link).html;
+}
+
+// Single source of truth for "which version is live". Tracking attributes events to
+// this same number the artifact route serves, so attribution can never drift from the
+// HTML actually rendered even if versions ever become non-contiguous.
+export function currentVersion(link: Link): number {
+  return latestVersion(link).version;
+}
+
+// The tracking write path is the first concurrent-write workload: every open/close
+// beacon does get -> mutate -> put against a single shared store, and that read-modify-write
+// interleaves across the await boundary, clobbering events. Serialize tracking writes
+// through one in-process chain so concurrent beacons can't lose opens or dwell.
+let trackWrites: Promise<unknown> = Promise.resolve();
+function serializeTrackWrite<T>(fn: () => Promise<T>): Promise<T> {
+  const run = trackWrites.then(fn, fn);
+  trackWrites = run.then(() => undefined, () => undefined);
+  return run;
 }
 
 export async function createLink(
@@ -27,20 +49,31 @@ export async function createLink(
   return link;
 }
 
-export async function recordOpen(store: LinkStore, e: ViewEvent): Promise<void> {
-  const link = await store.get(e.linkId);
-  if (!link) return;
-  const i = link.events.findIndex((x) => x.eventId === e.eventId);
-  if (i >= 0) link.events[i] = e; else link.events.push(e);
-  await store.put(link);
+export function recordOpen(store: LinkStore, e: ViewEvent): Promise<void> {
+  return serializeTrackWrite(async () => {
+    const link = await store.get(e.linkId);
+    if (!link) return;
+    const i = link.events.findIndex((x) => x.eventId === e.eventId);
+    if (i >= 0) {
+      // A close beacon fires from both pagehide and visibilitychange, and beacons have
+      // no delivery ordering. A duplicate/late open with the same eventId must not reset
+      // an already-recorded dwell, so preserve a non-zero dwell on upsert.
+      link.events[i] = { ...e, dwellMs: link.events[i].dwellMs > 0 ? link.events[i].dwellMs : e.dwellMs };
+    } else {
+      link.events.push(e);
+    }
+    await store.put(link);
+  });
 }
 
-export async function recordClose(store: LinkStore, linkId: string, eventId: string, dwellMs: number): Promise<void> {
-  const link = await store.get(linkId);
-  if (!link) return;
-  const ev = link.events.find((x) => x.eventId === eventId);
-  if (ev) ev.dwellMs = dwellMs;
-  await store.put(link);
+export function recordClose(store: LinkStore, linkId: string, eventId: string, dwellMs: number): Promise<void> {
+  return serializeTrackWrite(async () => {
+    const link = await store.get(linkId);
+    if (!link) return;
+    const ev = link.events.find((x) => x.eventId === eventId);
+    if (ev) ev.dwellMs = dwellMs;
+    await store.put(link);
+  });
 }
 
 export async function recordViewer(store: LinkStore, id: string, email: string): Promise<Link> {

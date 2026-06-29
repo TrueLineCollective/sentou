@@ -22,4 +22,10 @@ describe("trackingContext", () => {
     const ctx = trackingContext(link, null) as { track: true; token: string };
     expect(verifyTrackToken(ctx.token)!.viewer).toBe("anon");
   });
+  it("does not attribute a claim from a different link (cross-link privacy guard)", async () => {
+    const link = await createLink(createMemoryStore(), "<h1>x</h1>", undefined, true);
+    // A valid access cookie for link A must not stamp the viewer's email onto link B.
+    const ctx = trackingContext(link, { linkId: "some-other-link-id", email: "a@x.com" }) as { track: true; token: string };
+    expect(verifyTrackToken(ctx.token)!.viewer).toBe("anon");
+  });
 });
