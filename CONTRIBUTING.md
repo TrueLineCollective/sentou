@@ -4,7 +4,7 @@ Issues and pull requests are welcome. No CLA, no ceremony. If you have a feature
 
 ## Prerequisites
 
-- Node 20 or newer (see `.nvmrc`)
+- Node 20.9 or newer (see `.nvmrc`)
 - Git
 
 ## Getting set up
@@ -37,7 +37,7 @@ npm run build     # production build
 - `app/` — Next.js App Router. Routes under `app/api/*` are the HTTP API; `app/v/[slug]` is the viewer and `app/artifact/[slug]` serves the sandboxed bytes.
 - `lib/` — the core: links/store, the sealed-token and tracking-token modules, access evaluation, stats aggregation. Most logic and most tests live here.
 - `mcp/` — the MCP server and client that let you publish from a Claude session.
-- `docs/` — public docs. Internal strategy and plan files are gitignored.
+- `AGENTS.md` — orientation for contributors and coding agents (stack, the Next 16 caveat, the security-critical files).
 
 ## How we work
 
