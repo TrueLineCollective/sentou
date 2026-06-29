@@ -36,4 +36,20 @@ describe("api routes", () => {
     }));
     expect(res.status).toBe(400);
   });
+
+  it("404s republish for an unknown id", async () => {
+    const { POST: republish } = await import("@/app/api/republish/route");
+    const res = await republish(new Request("http://t/api/republish", {
+      method: "POST", body: JSON.stringify({ id: "does-not-exist", html: "<p>x</p>" }),
+    }));
+    expect(res.status).toBe(404);
+  });
+
+  it("rejects republish with a missing id", async () => {
+    const { POST: republish } = await import("@/app/api/republish/route");
+    const res = await republish(new Request("http://t/api/republish", {
+      method: "POST", body: JSON.stringify({ html: "<p>x</p>" }),
+    }));
+    expect(res.status).toBe(400);
+  });
 });
