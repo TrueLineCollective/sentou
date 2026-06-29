@@ -1,7 +1,15 @@
 import { createHmac, createCipheriv, createDecipheriv, createHash, randomBytes, timingSafeEqual } from "node:crypto";
 
 function secret(): string {
-  return process.env.SENTOU_SECRET || "dev-insecure-sentou-secret-change-me";
+  if (process.env.SENTOU_SECRET) return process.env.SENTOU_SECRET;
+  // Fail closed in production: the encrypted track token's confidentiality, and the
+  // owner-held linkId inside it, rests entirely on this key. A self-hoster who forgot to
+  // set it would run on the globally-known default key from this public repo, which both
+  // defeats the encryption and lets anyone forge tracking events.
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("SENTOU_SECRET is required in production (refusing the insecure default signing key)");
+  }
+  return "dev-insecure-sentou-secret-change-me";
 }
 function sign(body: string): string {
   return createHmac("sha256", secret()).update("track." + body).digest("base64url");
