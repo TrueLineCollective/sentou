@@ -26,7 +26,7 @@ describe("/api/access/verify", () => {
     const setCookies = res.headers.getSetCookie();
     const access = setCookies.find((c) => c.startsWith(`${cookieName(link.slug)}=`))!;
     const value = access.split(";")[0].split("=").slice(1).join("=");
-    expect(verifyAccessToken(decodeURIComponent(value))).toEqual({ linkId: link.id, email: "a@x.com" });
+    expect(verifyAccessToken(decodeURIComponent(value))).toEqual({ linkId: link.id, email: "a@x.com", verified: true });
     // Verify cookie is invalidated on success so the code can't be replayed within its TTL.
     const cleared = setCookies.find((c) => c.startsWith(`${verifyCookieName(link.slug)}=`))!;
     expect(cleared).toContain("Max-Age=0");

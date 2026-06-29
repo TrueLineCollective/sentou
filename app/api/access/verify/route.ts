@@ -83,8 +83,10 @@ export async function POST(req: Request) {
   if (!evaluateAccess(link, { email, now: new Date().toISOString() }).allowed) return fail(403, "denied");
 
   await resetVerifyAttempt(getStore(), link.id, email);
+  // Email proven: this is the only path that persists a viewer, so the store only ever holds
+  // verified addresses. The token is marked verified so tracking can attribute opens to it.
   await recordViewer(getStore(), link.id, email);
-  const token = signAccessToken({ linkId: link.id, email });
+  const token = signAccessToken({ linkId: link.id, email, verified: true });
   const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
   const cookie = `${cookieName(slug)}=${encodeURIComponent(token)}; HttpOnly; Path=/; SameSite=Lax${secure}`;
   // Single-use: now that an access cookie is issued, kill the verify cookie so its code
