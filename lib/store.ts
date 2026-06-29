@@ -18,3 +18,24 @@ export function createMemoryStore(): LinkStore {
     },
   };
 }
+
+import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
+import { dirname } from "node:path";
+
+export function createFileStore(filePath: string): LinkStore {
+  const load = (): Record<string, Link> => {
+    if (!existsSync(filePath)) return {};
+    try { return JSON.parse(readFileSync(filePath, "utf8")); } catch { return {}; }
+  };
+  const save = (data: Record<string, Link>) => {
+    mkdirSync(dirname(filePath), { recursive: true });
+    writeFileSync(filePath, JSON.stringify(data, null, 2));
+  };
+  return {
+    async put(link) { const d = load(); d[link.id] = link; save(d); },
+    async get(id) { return load()[id] ?? null; },
+    async getBySlug(slug) {
+      return Object.values(load()).find((l) => l.slug === slug) ?? null;
+    },
+  };
+}
