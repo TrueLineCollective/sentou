@@ -87,6 +87,25 @@ describe("gate routes", () => {
     expect(sc).not.toContain(`sentou_${link.slug}=`); // still no access cookie
   });
 
+  it("403s a blocked domain on a verifyEmail+allowlist link BEFORE emailing a code", async () => {
+    const link = await createLink(getStore(), "<h1>x</h1>", { requireEmail: true, allowedDomains: ["acme.com"], expiresAt: null, revoked: false }, false, true);
+    const { POST } = await import("@/app/api/access/route");
+    const res = await POST(new Request("http://t/api/access", { method: "POST", body: JSON.stringify({ slug: link.slug, email: "z@evil.com" }) }));
+    expect(res.status).toBe(403);
+    // No code is sent and no cookie of any kind (verify or access) is issued to a blocked domain.
+    expect(res.headers.get("set-cookie")).toBeNull();
+  });
+
+  it("a verifyEmail link cannot resolve to an OPEN gate even with requireEmail off and no allowlist", async () => {
+    // The operator flips on verifyEmail but leaves require-email off: createLink must still
+    // force the email gate, or the artifact would serve unverified content.
+    const link = await createLink(getStore(), "<h1>secret</h1>", { requireEmail: false, allowedDomains: null, expiresAt: null, revoked: false }, false, true);
+    expect(link.gate.requireEmail).toBe(true);
+    const { GET } = await import("@/app/artifact/[slug]/route");
+    const res = await GET(new Request("http://t/artifact/" + link.slug), { params: Promise.resolve({ slug: link.slug }) });
+    expect(res.status).toBe(403); // email_required, content withheld
+  });
+
   it("404s /api/access for an unknown slug", async () => {
     const { POST } = await import("@/app/api/access/route");
     const res = await POST(new Request("http://t/api/access", {

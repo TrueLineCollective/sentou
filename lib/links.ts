@@ -41,7 +41,11 @@ export function createLink(
       slug: nanoid(12),
       versions: [{ version: 1, html, createdAt: now }],
       createdAt: now,
-      gate: { ...gate },
+      // verifyEmail is meaningless without an email gate: paired with requireEmail=false
+      // and no allowlist, evaluateAccess returns "open" and the code-send/verify flow never
+      // runs, serving content unverified. Force the email gate on at the data layer so no
+      // caller (now or future) can produce a verifyEmail link that resolves to an open gate.
+      gate: { ...gate, requireEmail: gate.requireEmail || verifyEmail },
       viewers: [],
       track,
       verifyEmail,
