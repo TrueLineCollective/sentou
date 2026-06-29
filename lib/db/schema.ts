@@ -10,6 +10,7 @@ export const links = sqliteTable("links", {
   expiresAt: text("expires_at"),
   revoked: integer("revoked", { mode: "boolean" }).notNull().default(false),
   verifyEmail: integer("verify_email", { mode: "boolean" }).notNull().default(false),
+  verifyAttempts: text("verify_attempts", { mode: "json" }).$type<Record<string, number>>(),
   track: integer("track", { mode: "boolean" }).notNull().default(false),
   createdAt: text("created_at").notNull(),
 });
