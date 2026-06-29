@@ -12,7 +12,7 @@
   },
   "homepage": "https://github.com/TrueLineCollective/sentou#readme",
   "engines": {
-    "node": ">=20"
+    "node": ">=20.9"
   },
   "scripts": {
     "dev": "next dev",

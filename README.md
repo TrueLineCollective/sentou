@@ -70,6 +70,38 @@ claude mcp add sentou -- npx tsx mcp/server.ts
 
 Claude gets two tools, `publish_artifact(html)` and `republish(id, html)`. If your instance is not on localhost, point the server at it with `SENTOU_URL`.
 
+## Deploying
+
+`npm run dev` is for local work, not the internet. Sentou keeps its data in a single JSON file on local disk, so run it as **one instance with a persistent volume**. Do not deploy it to a serverless or autoscaling platform (Vercel Functions, multi-replica containers): each instance would get its own store and your links would scatter across them. One container, one disk.
+
+### With Docker
+
+```bash
+export SENTOU_SECRET=$(openssl rand -hex 32)
+export SENTOU_BASE_URL=https://sentou.yourdomain.com
+export SENTOU_OWNER_TOKEN=$(openssl rand -hex 32)
+docker compose up -d --build
+```
+
+The store lives in the `sentou-data` volume and survives restarts. Put a TLS-terminating reverse proxy (Caddy, nginx, your platform's ingress) in front of it.
+
+### Without Docker
+
+```bash
+npm ci && npm run build
+SENTOU_SECRET=... SENTOU_BASE_URL=https://... SENTOU_OWNER_TOKEN=... npm run start
+```
+
+### Environment for an exposed instance
+
+| Variable | Why |
+| --- | --- |
+| `SENTOU_SECRET` | Signs and encrypts cookies. In production the app refuses any request that needs it until this is set. Generate with `openssl rand -hex 32`. |
+| `SENTOU_BASE_URL` | The public URL links are built from. Left unset, generated links point at `http://localhost:3000`. |
+| `SENTOU_OWNER_TOKEN` | Gates the publish, republish, revoke, stats, and forget endpoints. Required in production and whenever `SENTOU_BASE_URL` is a non-localhost host. Send it as `Authorization: Bearer <token>`. |
+
+Optional: `SENTOU_RESEND_KEY` + `SENTOU_EMAIL_FROM` make `verifyEmail` links a real boundary, and `SENTOU_RETENTION_DAYS` prunes stored viewer and tracking data older than N days.
+
 ## What's next
 
 Shipped so far: the publish and republish loop, the sandboxed viewer, the MCP server, and the gating layer (email, domain allowlist, expiry, revoke).
