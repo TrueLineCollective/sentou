@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { createLink } from "@/lib/links";
+import { createLink, republish } from "@/lib/links";
 import { getStore } from "@/lib/server-store";
 
 beforeEach(() => {
@@ -23,7 +23,23 @@ describe("artifact route", () => {
     // artifact is opened directly at /artifact/:slug, outside the viewer iframe.
     expect(res.headers.get("content-security-policy")).toContain("sandbox allow-scripts");
     expect(res.headers.get("content-security-policy")).not.toContain("allow-same-origin");
+    // nosniff stops the browser MIME-sniffing untrusted artifact HTML into another
+    // type; no-store keeps user artifacts out of shared caches. Both are part of the
+    // security spine, so a refactor that drops either must fail CI.
+    expect(res.headers.get("x-content-type-options")).toBe("nosniff");
+    expect(res.headers.get("cache-control")).toContain("no-store");
     expect(await res.text()).toBe("<h1>hello</h1>");
+  });
+
+  it("serves the latest version after republish", async () => {
+    const link = await createLink(getStore(), "<h1>v1</h1>");
+    await republish(getStore(), link.id, "<h1>v2</h1>");
+    const { GET } = await import("@/app/artifact/[slug]/route");
+    const res = await GET(new Request("http://t/artifact/" + link.slug), {
+      params: Promise.resolve({ slug: link.slug }),
+    });
+    expect(res.status).toBe(200);
+    expect(await res.text()).toBe("<h1>v2</h1>");
   });
 
   it("404s an unknown slug", async () => {
