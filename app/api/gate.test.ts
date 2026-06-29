@@ -72,6 +72,21 @@ describe("gate routes", () => {
     expect(sc).not.toContain(`sentou_${link.slug}=`); // no access cookie yet
   });
 
+  it("on a form submit with verifyEmail, 303s to the code step carrying the verify cookie", async () => {
+    const link = await createLink(getStore(), "<h1>x</h1>", { requireEmail: true, allowedDomains: null, expiresAt: null, revoked: false }, false, true);
+    const { POST } = await import("@/app/api/access/route");
+    const res = await POST(new Request(`http://t/api/access?slug=${link.slug}`, {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: `email=a%40x.com&slug=${link.slug}`,
+    }));
+    expect(res.status).toBe(303);
+    expect(res.headers.get("location")).toBe(`/v/${link.slug}?step=code&email=a%40x.com`);
+    const sc = res.headers.get("set-cookie") || "";
+    expect(sc).toContain(`sentou_verify_${link.slug}=`);
+    expect(sc).not.toContain(`sentou_${link.slug}=`); // still no access cookie
+  });
+
   it("404s /api/access for an unknown slug", async () => {
     const { POST } = await import("@/app/api/access/route");
     const res = await POST(new Request("http://t/api/access", {
