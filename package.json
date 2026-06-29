@@ -2,13 +2,27 @@
   "name": "sentou",
   "version": "0.1.0",
   "private": true,
+  "description": "Send a Claude artifact as a private, gated, tracked link.",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/TrueLineCollective/sentou.git"
+  },
+  "bugs": {
+    "url": "https://github.com/TrueLineCollective/sentou/issues"
+  },
+  "homepage": "https://github.com/TrueLineCollective/sentou#readme",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
     "mcp": "tsx mcp/server.ts"
   },
   "dependencies": {
