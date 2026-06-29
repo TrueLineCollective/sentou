@@ -4,11 +4,21 @@ import { evaluateAccess } from "@/lib/access";
 import { openVerify } from "@/lib/verify";
 import { signAccessToken } from "@/lib/token";
 import { cookieName, verifyCookieName } from "@/lib/cookies";
+import { timingSafeEqual } from "node:crypto";
 
 function readCookie(req: Request, name: string): string | null {
   const raw = req.headers.get("cookie") ?? "";
   for (const part of raw.split(";")) { const [k, ...v] = part.trim().split("="); if (k === name) return decodeURIComponent(v.join("=")); }
   return null;
+}
+
+// Constant-time code compare: a char-by-char === short-circuits on the first mismatch,
+// leaking how many leading digits are correct and turning the per-code guess budget into
+// a digit-at-a-time oracle. Length-check first (lengths aren't secret), then timingSafeEqual.
+function codeMatches(expected: string, given: string): boolean {
+  const a = Buffer.from(expected);
+  const b = Buffer.from(given);
+  return a.length === b.length && timingSafeEqual(a, b);
 }
 
 export async function POST(req: Request) {
@@ -53,7 +63,7 @@ export async function POST(req: Request) {
   if (attempts > 5) return fail(429, "too many attempts; request a new code");
 
   const claim = openVerify(readCookie(req, verifyCookieName(slug)));
-  const ok = !!claim && claim.slug === slug && claim.email === email && Date.now() < claim.exp && claim.code === String(code);
+  const ok = !!claim && claim.slug === slug && claim.email === email && Date.now() < claim.exp && codeMatches(claim.code, String(code));
   if (!ok) return fail(401, "invalid or expired code");
   if (!evaluateAccess(link, { email, now: new Date().toISOString() }).allowed) return fail(403, "denied");
 
@@ -62,10 +72,18 @@ export async function POST(req: Request) {
   const token = signAccessToken({ linkId: link.id, email });
   const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
   const cookie = `${cookieName(slug)}=${encodeURIComponent(token)}; HttpOnly; Path=/; SameSite=Lax${secure}`;
+  // Single-use: now that an access cookie is issued, kill the verify cookie so its code
+  // can't be replayed within the remaining TTL.
+  const clearVerify = `${verifyCookieName(slug)}=; HttpOnly; Path=/; SameSite=Lax; Max-Age=0${secure}`;
+  const headers = new Headers();
+  headers.append("set-cookie", cookie);
+  headers.append("set-cookie", clearVerify);
   if (isForm) {
-    return new Response(null, { status: 303, headers: { location: `/v/${slug}`, "set-cookie": cookie } });
+    headers.set("location", `/v/${slug}`);
+    return new Response(null, { status: 303, headers });
   }
   const res = Response.json({ ok: true, url: linkUrl(slug) });
-  res.headers.set("set-cookie", cookie);
+  res.headers.append("set-cookie", cookie);
+  res.headers.append("set-cookie", clearVerify);
   return res;
 }
