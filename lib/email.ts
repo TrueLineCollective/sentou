@@ -4,6 +4,16 @@ export interface EmailSender {
 
 const consoleSender: EmailSender = {
   async sendCode(to, code) {
+    // Never write a recipient address or a live OTP to stdout on a real deploy: production
+    // logs are PII + a credential. Publish refuses verifyEmail links without a sender in
+    // production, so reaching here in prod is a misconfiguration; warn without leaking.
+    if (process.env.NODE_ENV === "production") {
+      console.warn(
+        "[sentou] no email sender configured; cannot deliver a verification code. " +
+          "Set SENTOU_RESEND_KEY + SENTOU_EMAIL_FROM.",
+      );
+      return;
+    }
     console.log(`[sentou] verification code for ${to}: ${code}`);
   },
 };
