@@ -25,6 +25,7 @@ export type Link = {
   gate: Gate;
   viewers: Viewer[];
   track: boolean;
+  verifyEmail: boolean;
   events: ViewEvent[];
 };
 
