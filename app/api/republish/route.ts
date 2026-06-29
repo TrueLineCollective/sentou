@@ -1,7 +1,9 @@
 import { republish } from "@/lib/links";
 import { getStore, linkUrl } from "@/lib/server-store";
+import { requireOwner } from "@/lib/owner";
 
 export async function POST(req: Request) {
+  if (!requireOwner(req)) return Response.json({ error: "unauthorized" }, { status: 401 });
   const body = await req.json().catch(() => ({}));
   const { id, html } = body as { id?: string; html?: string };
   if (!id || typeof html !== "string" || !html.trim()) {
