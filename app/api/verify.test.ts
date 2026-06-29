@@ -43,4 +43,16 @@ describe("/api/access/verify", () => {
     const expired = await POST(new Request("http://t/api/access/verify", { method: "POST", headers: { cookie: withCode(link.slug, "a@x.com", "111222", Date.now() - 1) }, body: JSON.stringify({ slug: link.slug, email: "a@x.com", code: "111222" }) }));
     expect(expired.status).toBe(401);
   });
+
+  it("locks the code after 5 attempts, so the 6th is refused even when correct (brute-force cap)", async () => {
+    const link = await gated();
+    const { POST } = await import("@/app/api/access/verify/route");
+    const cookie = withCode(link.slug, "a@x.com", "111222");
+    for (let i = 0; i < 5; i++) {
+      const wrong = await POST(new Request("http://t/api/access/verify", { method: "POST", headers: { cookie }, body: JSON.stringify({ slug: link.slug, email: "a@x.com", code: "000000" }) }));
+      expect(wrong.status).toBe(401);
+    }
+    const locked = await POST(new Request("http://t/api/access/verify", { method: "POST", headers: { cookie }, body: JSON.stringify({ slug: link.slug, email: "a@x.com", code: "111222" }) }));
+    expect(locked.status).toBe(429);
+  });
 });
