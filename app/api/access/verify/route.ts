@@ -1,4 +1,4 @@
-import { getLinkBySlug, recordViewer } from "@/lib/links";
+import { getLinkBySlug, recordViewer, bumpVerifyAttempt, resetVerifyAttempt } from "@/lib/links";
 import { getStore, linkUrl } from "@/lib/server-store";
 import { evaluateAccess } from "@/lib/access";
 import { openVerify } from "@/lib/verify";
@@ -49,11 +49,15 @@ export async function POST(req: Request) {
   const link = await getLinkBySlug(getStore(), slug);
   if (!link) return fail(404, "not found");
 
+  const attempts = await bumpVerifyAttempt(getStore(), link.id, email);
+  if (attempts > 5) return fail(429, "too many attempts; request a new code");
+
   const claim = openVerify(readCookie(req, verifyCookieName(slug)));
   const ok = !!claim && claim.slug === slug && claim.email === email && Date.now() < claim.exp && claim.code === String(code);
   if (!ok) return fail(401, "invalid or expired code");
   if (!evaluateAccess(link, { email, now: new Date().toISOString() }).allowed) return fail(403, "denied");
 
+  await resetVerifyAttempt(getStore(), link.id, email);
   await recordViewer(getStore(), link.id, email);
   const token = signAccessToken({ linkId: link.id, email });
   const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";

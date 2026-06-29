@@ -14,7 +14,7 @@ describe("email sender", () => {
     process.env.SENTOU_RESEND_KEY = "re_test";
     process.env.SENTOU_EMAIL_FROM = "Sentou <no-reply@example.com>";
     expect(emailConfigured()).toBe(true);
-    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => new Response("{}", { status: 200 }));
+    const fetchMock = vi.fn(async () => new Response("{}", { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
     await getSender().sendCode("a@x.com", "654321");
     expect(fetchMock).toHaveBeenCalledWith("https://api.resend.com/emails", expect.objectContaining({ method: "POST" }));
