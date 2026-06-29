@@ -8,7 +8,7 @@ describe("access token", () => {
   });
   it("rejects a tampered payload (signature mismatch)", () => {
     const t = signAccessToken({ linkId: "L1", email: "a@x.com" });
-    const [body, sig] = t.split(".");
+    const [, sig] = t.split(".");
     const forged = Buffer.from(JSON.stringify({ linkId: "L1", email: "attacker@x.com" })).toString("base64url");
     expect(verifyAccessToken(forged + "." + sig)).toBeNull();
   });

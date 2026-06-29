@@ -1,7 +1,9 @@
 import type { ViewEvent } from "@/lib/store";
 
-export function aggregate(events: ViewEvent[]) {
-  const byViewer = new Map<string, { viewer: string; opens: number; totalDwellMs: number; lastSeen: string }>();
+export type ViewerStat = { viewer: string; opens: number; totalDwellMs: number; lastSeen: string };
+
+export function aggregate(events: ViewEvent[]): { totalOpens: number; viewers: ViewerStat[] } {
+  const byViewer = new Map<string, ViewerStat>();
   for (const e of events) {
     const v = byViewer.get(e.viewer) ?? { viewer: e.viewer, opens: 0, totalDwellMs: 0, lastSeen: e.openedAt };
     v.opens += 1;
