@@ -61,6 +61,17 @@ describe("gate routes", () => {
     expect(await res.text()).toBe("<h1>secret</h1>");
   });
 
+  it("sends a code and withholds access when verifyEmail is on", async () => {
+    const link = await createLink(getStore(), "<h1>x</h1>", { requireEmail: true, allowedDomains: null, expiresAt: null, revoked: false }, false, true);
+    const { POST } = await import("@/app/api/access/route");
+    const res = await POST(new Request("http://t/api/access", { method: "POST", body: JSON.stringify({ slug: link.slug, email: "a@x.com" }) }));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ status: "code_sent" });
+    const sc = res.headers.get("set-cookie") || "";
+    expect(sc).toContain(`sentou_verify_${link.slug}=`);
+    expect(sc).not.toContain(`sentou_${link.slug}=`); // no access cookie yet
+  });
+
   it("404s /api/access for an unknown slug", async () => {
     const { POST } = await import("@/app/api/access/route");
     const res = await POST(new Request("http://t/api/access", {
