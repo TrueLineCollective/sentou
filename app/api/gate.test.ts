@@ -101,4 +101,14 @@ describe("gate routes", () => {
     const unknown = await POST(new Request("http://t/api/revoke", { method: "POST", body: JSON.stringify({ id: "nope" }) }));
     expect(unknown.status).toBe(404);
   });
+
+  it("dedupes a repeat viewer email instead of growing the array", async () => {
+    const link = await createLink(getStore(), "<h1>x</h1>", { requireEmail: true, allowedDomains: null, expiresAt: null, revoked: false });
+    const { POST } = await import("@/app/api/access/route");
+    for (let i = 0; i < 3; i++) {
+      await POST(new Request("http://t/api/access", { method: "POST", body: JSON.stringify({ slug: link.slug, email: "a@x.com" }) }));
+    }
+    const after = await getLinkBySlug(getStore(), link.slug);
+    expect(after!.viewers.filter((v) => v.email === "a@x.com")).toHaveLength(1);
+  });
 });
