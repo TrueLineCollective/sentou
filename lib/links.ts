@@ -32,7 +32,7 @@ function serializeWrite<T>(fn: () => Promise<T>): Promise<T> {
 }
 
 export function createLink(
-  store: LinkStore, html: string, gate: Gate = OPEN_GATE, track = false,
+  store: LinkStore, html: string, gate: Gate = OPEN_GATE, track = false, verifyEmail = false,
 ): Promise<Link> {
   return serializeWrite(async () => {
     const now = new Date().toISOString();
@@ -44,6 +44,7 @@ export function createLink(
       gate: { ...gate },
       viewers: [],
       track,
+      verifyEmail,
       events: [],
     };
     await store.put(link);
