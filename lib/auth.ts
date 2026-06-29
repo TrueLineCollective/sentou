@@ -91,6 +91,8 @@ export function makeAuth(db: BetterSQLite3Database<typeof schema> = getDb()) {
     },
     plugins: [
       organization({
+        // Prevent any member from creating a new org to self-promote to owner role.
+        allowUserToCreateOrganization: false,
         async sendInvitationEmail(data) {
           // Fail closed in production when no email sender is configured: a silent
           // swallow here would let the invite record exist with no email delivered,

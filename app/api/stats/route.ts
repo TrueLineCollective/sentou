@@ -1,7 +1,7 @@
 import { getStore } from "@/lib/server-store";
 import { aggregate } from "@/lib/stats";
 import { requireOwner } from "@/lib/owner";
-import type { Actor } from "@/lib/auth-session";
+import { isAdmin, type Actor } from "@/lib/auth-session";
 
 export async function GET(req: Request) {
   let actor: Actor | null;
@@ -16,11 +16,14 @@ export async function GET(req: Request) {
   const link = await getStore().get(id);
   if (!link) return Response.json({ error: "not found" }, { status: 404 });
 
-  // Ownership enforcement: when a real actor is present AND the link has a
-  // known owner, allow only if the actor owns it or holds an elevated role.
+  // Ownership enforcement: when a real actor is present, allow only if the
+  // actor owns this link or holds an elevated role. A null-owner (legacy/
+  // imported) link is accessible only to admins — not to ordinary members.
+  // When there is no actor (dev/local open mode), allow all.
   const ownerId = link.ownerUserId ?? null;
-  if (actor && ownerId) {
-    if (actor.userId !== ownerId && actor.role !== "owner" && actor.role !== "admin") {
+  if (actor) {
+    const authorized = (ownerId !== null && actor.userId === ownerId) || isAdmin(actor);
+    if (!authorized) {
       return Response.json({ error: "forbidden" }, { status: 403 });
     }
   }
