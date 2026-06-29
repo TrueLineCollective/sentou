@@ -2,9 +2,11 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { __resetRateLimits } from "@/lib/rate-limit";
 
 beforeEach(() => {
   process.env.SENTOU_DB = path.join(mkdtempSync(path.join(tmpdir(), "sentou-")), "db.json");
+  __resetRateLimits();
 });
 
 describe("api routes", () => {

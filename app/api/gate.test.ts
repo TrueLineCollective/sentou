@@ -5,9 +5,11 @@ import path from "node:path";
 import { createLink, getLinkBySlug } from "@/lib/links";
 import { getStore } from "@/lib/server-store";
 import { verifyAccessToken } from "@/lib/token";
+import { __resetRateLimits } from "@/lib/rate-limit";
 
 beforeEach(() => {
   process.env.SENTOU_DB = path.join(mkdtempSync(path.join(tmpdir(), "sentou-")), "db.json");
+  __resetRateLimits();
 });
 
 const gated = (over = {}) => ({ requireEmail: true, allowedDomains: null as string[] | null, expiresAt: null as string | null, revoked: false, ...over });
@@ -81,7 +83,9 @@ describe("gate routes", () => {
       body: `email=a%40x.com&slug=${link.slug}`,
     }));
     expect(res.status).toBe(303);
-    expect(res.headers.get("location")).toBe(`/v/${link.slug}?step=code&email=a%40x.com`);
+    // The email is NOT in the redirect URL (it would land in proxy logs / browser history); it
+    // rides in the sealed verify cookie and the viewer reads it back from there.
+    expect(res.headers.get("location")).toBe(`/v/${link.slug}?step=code`);
     const sc = res.headers.get("set-cookie") || "";
     expect(sc).toContain(`sentou_verify_${link.slug}=`);
     expect(sc).not.toContain(`sentou_${link.slug}=`); // still no access cookie
@@ -128,6 +132,14 @@ describe("gate routes", () => {
     const { POST } = await import("@/app/api/access/route");
     const res = await POST(new Request("http://t/api/access", { method: "POST", body: JSON.stringify({ slug: "x" }) }));
     expect(res.status).toBe(400);
+  });
+
+  it("400s a malformed email at the boundary instead of storing garbage", async () => {
+    const link = await createLink(getStore(), "<h1>x</h1>", gated());
+    const { POST } = await import("@/app/api/access/route");
+    const res = await POST(new Request("http://t/api/access", { method: "POST", body: JSON.stringify({ slug: link.slug, email: "not-an-email" }) }));
+    expect(res.status).toBe(400);
+    expect((await getLinkBySlug(getStore(), link.slug))!.viewers).toHaveLength(0);
   });
 
   it("revokes a link", async () => {

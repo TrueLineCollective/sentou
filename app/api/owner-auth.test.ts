@@ -2,8 +2,9 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { __resetRateLimits } from "@/lib/rate-limit";
 
-beforeEach(() => { process.env.SENTOU_DB = path.join(mkdtempSync(path.join(tmpdir(), "sentou-")), "db.json"); });
+beforeEach(() => { process.env.SENTOU_DB = path.join(mkdtempSync(path.join(tmpdir(), "sentou-")), "db.json"); __resetRateLimits(); });
 afterEach(() => { delete process.env.SENTOU_OWNER_TOKEN; vi.unstubAllEnvs(); });
 
 describe("owner auth", () => {
