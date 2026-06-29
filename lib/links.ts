@@ -64,6 +64,7 @@ export function recordOpen(store: LinkStore, e: ViewEvent): Promise<void> {
     } else {
       link.events.push(e);
     }
+    if (link.events.length > 10000) link.events = link.events.slice(-10000);
     await store.put(link);
   });
 }
@@ -73,7 +74,7 @@ export function recordClose(store: LinkStore, linkId: string, eventId: string, d
     const link = await store.get(linkId);
     if (!link) return;
     const ev = link.events.find((x) => x.eventId === eventId);
-    if (ev) ev.dwellMs = dwellMs;
+    if (ev) ev.dwellMs = Math.max(ev.dwellMs, dwellMs);
     await store.put(link);
   });
 }
@@ -82,7 +83,9 @@ export function recordViewer(store: LinkStore, id: string, email: string): Promi
   return serializeWrite(async () => {
     const link = await store.get(id);
     if (!link) throw new Error("link not found");
+    if (link.viewers.some((v) => v.email === email)) return link;
     link.viewers.push({ email, at: new Date().toISOString() });
+    if (link.viewers.length > 5000) link.viewers = link.viewers.slice(-5000);
     await store.put(link);
     return link;
   });
