@@ -1,5 +1,19 @@
 export type Version = { version: number; html: string; createdAt: string };
-export type Link = { id: string; slug: string; versions: Version[]; createdAt: string };
+export type Gate = {
+  requireEmail: boolean;
+  allowedDomains: string[] | null;
+  expiresAt: string | null;
+  revoked: boolean;
+};
+export type Viewer = { email: string; at: string };
+export type Link = {
+  id: string;
+  slug: string;
+  versions: Version[];
+  createdAt: string;
+  gate: Gate;
+  viewers: Viewer[];
+};
 
 export interface LinkStore {
   put(link: Link): Promise<void>;
