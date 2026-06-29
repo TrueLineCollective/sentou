@@ -1,9 +1,11 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { createLink } from "@/lib/links";
 import { getStore } from "@/lib/server-store";
+
+vi.mock("next/headers", () => ({ cookies: async () => ({ get: () => undefined }) }));
 
 beforeEach(() => {
   process.env.SENTOU_DB = path.join(mkdtempSync(path.join(tmpdir(), "sentou-")), "db.json");
