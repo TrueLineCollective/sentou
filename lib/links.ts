@@ -20,37 +20,39 @@ export function currentVersion(link: Link): number {
   return latestVersion(link).version;
 }
 
-// The tracking write path is the first concurrent-write workload: every open/close
-// beacon does get -> mutate -> put against a single shared store, and that read-modify-write
-// interleaves across the await boundary, clobbering events. Serialize tracking writes
-// through one in-process chain so concurrent beacons can't lose opens or dwell.
-let trackWrites: Promise<unknown> = Promise.resolve();
-function serializeTrackWrite<T>(fn: () => Promise<T>): Promise<T> {
-  const run = trackWrites.then(fn, fn);
-  trackWrites = run.then(() => undefined, () => undefined);
+// Every mutation does get -> mutate -> put against a single shared store, and that
+// read-modify-write interleaves across the await boundary, clobbering whole records
+// (a concurrent tracking beacon could otherwise lose a revoke, an open, or dwell).
+// Serialize ALL mutations through one in-process chain so no concurrent write can be lost.
+let writeChain: Promise<unknown> = Promise.resolve();
+function serializeWrite<T>(fn: () => Promise<T>): Promise<T> {
+  const run = writeChain.then(fn, fn);
+  writeChain = run.then(() => undefined, () => undefined);
   return run;
 }
 
-export async function createLink(
+export function createLink(
   store: LinkStore, html: string, gate: Gate = OPEN_GATE, track = false,
 ): Promise<Link> {
-  const now = new Date().toISOString();
-  const link: Link = {
-    id: nanoid(),
-    slug: nanoid(12),
-    versions: [{ version: 1, html, createdAt: now }],
-    createdAt: now,
-    gate: { ...gate },
-    viewers: [],
-    track,
-    events: [],
-  };
-  await store.put(link);
-  return link;
+  return serializeWrite(async () => {
+    const now = new Date().toISOString();
+    const link: Link = {
+      id: nanoid(),
+      slug: nanoid(12),
+      versions: [{ version: 1, html, createdAt: now }],
+      createdAt: now,
+      gate: { ...gate },
+      viewers: [],
+      track,
+      events: [],
+    };
+    await store.put(link);
+    return link;
+  });
 }
 
 export function recordOpen(store: LinkStore, e: ViewEvent): Promise<void> {
-  return serializeTrackWrite(async () => {
+  return serializeWrite(async () => {
     const link = await store.get(e.linkId);
     if (!link) return;
     const i = link.events.findIndex((x) => x.eventId === e.eventId);
@@ -67,7 +69,7 @@ export function recordOpen(store: LinkStore, e: ViewEvent): Promise<void> {
 }
 
 export function recordClose(store: LinkStore, linkId: string, eventId: string, dwellMs: number): Promise<void> {
-  return serializeTrackWrite(async () => {
+  return serializeWrite(async () => {
     const link = await store.get(linkId);
     if (!link) return;
     const ev = link.events.find((x) => x.eventId === eventId);
@@ -76,31 +78,37 @@ export function recordClose(store: LinkStore, linkId: string, eventId: string, d
   });
 }
 
-export async function recordViewer(store: LinkStore, id: string, email: string): Promise<Link> {
-  const link = await store.get(id);
-  if (!link) throw new Error("link not found");
-  link.viewers.push({ email, at: new Date().toISOString() });
-  await store.put(link);
-  return link;
+export function recordViewer(store: LinkStore, id: string, email: string): Promise<Link> {
+  return serializeWrite(async () => {
+    const link = await store.get(id);
+    if (!link) throw new Error("link not found");
+    link.viewers.push({ email, at: new Date().toISOString() });
+    await store.put(link);
+    return link;
+  });
 }
 
-export async function revokeLink(store: LinkStore, id: string): Promise<Link> {
-  const link = await store.get(id);
-  if (!link) throw new Error("link not found");
-  link.gate.revoked = true;
-  await store.put(link);
-  return link;
+export function revokeLink(store: LinkStore, id: string): Promise<Link> {
+  return serializeWrite(async () => {
+    const link = await store.get(id);
+    if (!link) throw new Error("link not found");
+    link.gate.revoked = true;
+    await store.put(link);
+    return link;
+  });
 }
 
 export async function getLinkBySlug(store: LinkStore, slug: string): Promise<Link | null> {
   return store.getBySlug(slug);
 }
 
-export async function republish(store: LinkStore, id: string, html: string): Promise<Link> {
-  const link = await store.get(id);
-  if (!link) throw new Error("link not found");
-  const nextVersion = link.versions.length + 1;
-  link.versions.push({ version: nextVersion, html, createdAt: new Date().toISOString() });
-  await store.put(link);
-  return link;
+export function republish(store: LinkStore, id: string, html: string): Promise<Link> {
+  return serializeWrite(async () => {
+    const link = await store.get(id);
+    if (!link) throw new Error("link not found");
+    const nextVersion = link.versions.length + 1;
+    link.versions.push({ version: nextVersion, html, createdAt: new Date().toISOString() });
+    await store.put(link);
+    return link;
+  });
 }
