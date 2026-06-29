@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { createLink, getLinkBySlug } from "@/lib/links";
 import { getStore } from "@/lib/server-store";
+import { verifyAccessToken } from "@/lib/token";
 
 beforeEach(() => {
   process.env.SENTOU_DB = path.join(mkdtempSync(path.join(tmpdir(), "sentou-")), "db.json");
@@ -19,10 +20,53 @@ describe("gate routes", () => {
       method: "POST", body: JSON.stringify({ slug: link.slug, email: "a@x.com" }),
     }));
     expect(res.status).toBe(200);
-    expect(res.headers.get("set-cookie")).toContain(`sentou_${link.slug}=`);
-    expect(res.headers.get("set-cookie")).toContain("HttpOnly");
+    const setCookie = res.headers.get("set-cookie")!;
+    expect(setCookie).toContain(`sentou_${link.slug}=`);
+    expect(setCookie).toContain("HttpOnly");
+    // SameSite=Lax is the CSRF-relevant attribute; Path=/ scopes the cookie.
+    expect(setCookie).toContain("SameSite=Lax");
+    expect(setCookie).toContain("Path=/");
+    // The emitted cookie value must be a real, verifiable, link-scoped token.
+    const value = setCookie.split(";")[0].split("=").slice(1).join("=");
+    expect(verifyAccessToken(decodeURIComponent(value))).toEqual({ linkId: link.id, email: "a@x.com" });
     const after = await getLinkBySlug(getStore(), link.slug);
     expect(after!.viewers.map((v) => v.email)).toContain("a@x.com");
+  });
+
+  it("accepts the native urlencoded form and 303-redirects back to the viewer", async () => {
+    const link = await createLink(getStore(), "<h1>x</h1>", gated());
+    const { POST } = await import("@/app/api/access/route");
+    const res = await POST(new Request(`http://t/api/access?slug=${link.slug}`, {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: `email=a%40x.com&slug=${link.slug}`,
+    }));
+    expect(res.status).toBe(303);
+    expect(res.headers.get("location")).toBe(`/v/${link.slug}`);
+    expect(res.headers.get("set-cookie")).toContain(`sentou_${link.slug}=`);
+  });
+
+  it("a cookie minted by /api/access unlocks the gated artifact end-to-end", async () => {
+    const link = await createLink(getStore(), "<h1>secret</h1>", gated());
+    const { POST } = await import("@/app/api/access/route");
+    const accessRes = await POST(new Request("http://t/api/access", {
+      method: "POST", body: JSON.stringify({ slug: link.slug, email: "a@x.com" }),
+    }));
+    const cookiePair = accessRes.headers.get("set-cookie")!.split(";")[0]; // sentou_<slug>=<token>
+    const { GET } = await import("@/app/artifact/[slug]/route");
+    const res = await GET(new Request("http://t/artifact/" + link.slug, { headers: { cookie: cookiePair } }), {
+      params: Promise.resolve({ slug: link.slug }),
+    });
+    expect(res.status).toBe(200);
+    expect(await res.text()).toBe("<h1>secret</h1>");
+  });
+
+  it("404s /api/access for an unknown slug", async () => {
+    const { POST } = await import("@/app/api/access/route");
+    const res = await POST(new Request("http://t/api/access", {
+      method: "POST", body: JSON.stringify({ slug: "does-not-exist", email: "a@x.com" }),
+    }));
+    expect(res.status).toBe(404);
   });
 
   it("403s a blocked domain and sets no cookie", async () => {
@@ -48,5 +92,13 @@ describe("gate routes", () => {
     expect(res.status).toBe(200);
     const after = await getLinkBySlug(getStore(), link.slug);
     expect(after!.gate.revoked).toBe(true);
+  });
+
+  it("400s /api/revoke with a missing id and 404s an unknown id", async () => {
+    const { POST } = await import("@/app/api/revoke/route");
+    const missing = await POST(new Request("http://t/api/revoke", { method: "POST", body: JSON.stringify({}) }));
+    expect(missing.status).toBe(400);
+    const unknown = await POST(new Request("http://t/api/revoke", { method: "POST", body: JSON.stringify({ id: "nope" }) }));
+    expect(unknown.status).toBe(404);
   });
 });
