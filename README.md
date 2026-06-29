@@ -27,7 +27,7 @@ This is early. The core works and is covered by tests, but a good part of the ro
 - Control who gets in: require an email, restrict to a company domain, set an expiry, or revoke a link when you are done.
 - Every artifact runs sandboxed. Its JavaScript executes in an isolated origin behind a strict CSP, so a published page cannot reach the cookies, session, or data on your domain. That holds even when someone opens the raw artifact URL directly, not only inside the viewer.
 
-One caveat while this is young: the email gate records who is asking and enforces expiry and revocation, but it does not verify the address yet. The domain allowlist rides on that same unverified email, so it is not a hard lock either until verification ships. Until then (it is on the roadmap), the unguessable link is the real secret. A typed email is a record, not a lock. Revoke, expiry, and the unguessable link are the real controls today, and they hold no matter what email someone enters.
+How hard the email gate locks depends on whether you wire an email sender. Set `SENTOU_RESEND_KEY` and `SENTOU_EMAIL_FROM` and a verifying gated link emails a one-time code to the address someone types and only grants access once they enter it back. The email is then verified, and the domain allowlist riding on it becomes a real lock. With no sender configured the gate stays record-only: it logs the email and enforces expiry and revocation but does not confirm the address, so a typed email is a record, not a lock. In that mode the unguessable link, expiry, and revoke are the real controls, and they hold no matter what email someone enters.
 
 ## How the sandbox works
 
@@ -57,6 +57,8 @@ curl -s -X POST localhost:3000/api/publish \
 Open the `url` it returns to see your artifact in its sandbox. To update it, POST `{ "id": "...", "html": "..." }` to `/api/republish` and the same link picks up the change.
 
 To gate a link, pass `requireEmail`, `allowedDomains`, or `expiresAt` at publish time. A gated link asks for an email before it loads, and `/api/revoke` shuts it off.
+
+To turn the email gate into a real boundary, pass `verifyEmail: true` at publish time and configure an email sender by setting `SENTOU_RESEND_KEY` (a [Resend](https://resend.com) API key) and `SENTOU_EMAIL_FROM` (the verified from-address). A verifying link emails a one-time code and only grants access once the recipient enters it. Leave the sender unset and verification falls back to logging the code to the server console, which is useful for local testing but is not a boundary.
 
 ### Publishing from Claude
 
