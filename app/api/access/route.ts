@@ -2,7 +2,9 @@ import { getLinkBySlug, recordViewer } from "@/lib/links";
 import { getStore, linkUrl } from "@/lib/server-store";
 import { evaluateAccess } from "@/lib/access";
 import { signAccessToken } from "@/lib/token";
-import { cookieName } from "@/lib/cookies";
+import { cookieName, verifyCookieName } from "@/lib/cookies";
+import { newCode, sealVerify } from "@/lib/verify";
+import { getSender } from "@/lib/email";
 
 export async function POST(req: Request) {
   // The shipped viewer submits a native HTML <form> (application/x-www-form-urlencoded);
@@ -42,6 +44,15 @@ export async function POST(req: Request) {
 
   const decision = evaluateAccess(link, { email, now: new Date().toISOString() });
   if (!decision.allowed) return fail(403, decision.reason);
+
+  if (link.verifyEmail) {
+    const code = newCode();
+    const token = sealVerify({ slug, email, code, exp: Date.now() + 600_000 });
+    await getSender().sendCode(email, code);
+    const res = Response.json({ status: "code_sent" });
+    res.headers.set("set-cookie", `${verifyCookieName(slug)}=${token}; HttpOnly; Path=/; SameSite=Lax; Max-Age=600${process.env.NODE_ENV === "production" ? "; Secure" : ""}`);
+    return res;
+  }
 
   await recordViewer(store, link.id, email);
   const token = signAccessToken({ linkId: link.id, email });
