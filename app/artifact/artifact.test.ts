@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { createLink, republish } from "@/lib/links";
 import { getStore } from "@/lib/server-store";
+import { signAccessToken } from "@/lib/token";
 
 beforeEach(() => {
   process.env.SENTOU_DB = path.join(mkdtempSync(path.join(tmpdir(), "sentou-")), "db.json");
@@ -48,5 +49,47 @@ describe("artifact route", () => {
       params: Promise.resolve({ slug: "missing" }),
     });
     expect(res.status).toBe(404);
+  });
+
+  it("403s a gated artifact with no access cookie", async () => {
+    const link = await createLink(getStore(), "<h1>secret</h1>", {
+      requireEmail: true, allowedDomains: null, expiresAt: null, revoked: false,
+    });
+    const { GET } = await import("@/app/artifact/[slug]/route");
+    const res = await GET(new Request("http://t/artifact/" + link.slug), {
+      params: Promise.resolve({ slug: link.slug }),
+    });
+    expect(res.status).toBe(403);
+  });
+
+  it("200s a gated artifact with a valid link-scoped cookie", async () => {
+    const link = await createLink(getStore(), "<h1>secret</h1>", {
+      requireEmail: true, allowedDomains: null, expiresAt: null, revoked: false,
+    });
+    const token = signAccessToken({ linkId: link.id, email: "a@x.com" });
+    const { GET } = await import("@/app/artifact/[slug]/route");
+    const res = await GET(new Request("http://t/artifact/" + link.slug, {
+      headers: { cookie: `sentou_${link.slug}=${encodeURIComponent(token)}` },
+    }), { params: Promise.resolve({ slug: link.slug }) });
+    expect(res.status).toBe(200);
+    expect(await res.text()).toBe("<h1>secret</h1>");
+  });
+
+  it("rejects a cookie token minted for a DIFFERENT link", async () => {
+    const a = await createLink(getStore(), "<h1>A</h1>", { requireEmail: true, allowedDomains: null, expiresAt: null, revoked: false });
+    const b = await createLink(getStore(), "<h1>B</h1>", { requireEmail: true, allowedDomains: null, expiresAt: null, revoked: false });
+    const tokenForA = signAccessToken({ linkId: a.id, email: "a@x.com" });
+    const { GET } = await import("@/app/artifact/[slug]/route");
+    const res = await GET(new Request("http://t/artifact/" + b.slug, {
+      headers: { cookie: `sentou_${b.slug}=${encodeURIComponent(tokenForA)}` },
+    }), { params: Promise.resolve({ slug: b.slug }) });
+    expect(res.status).toBe(403);
+  });
+
+  it("410s a revoked link", async () => {
+    const link = await createLink(getStore(), "<h1>x</h1>", { requireEmail: false, allowedDomains: null, expiresAt: null, revoked: true });
+    const { GET } = await import("@/app/artifact/[slug]/route");
+    const res = await GET(new Request("http://t/artifact/" + link.slug), { params: Promise.resolve({ slug: link.slug }) });
+    expect(res.status).toBe(410);
   });
 });
