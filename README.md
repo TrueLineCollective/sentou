@@ -28,7 +28,7 @@ This is early. The core works and is covered by tests, but a good part of the ro
 - See who opened a link, when, and how long they stayed, if you turn it on. Tracking is off by default and opt-in per link (`track: true` at publish). When it is on, the viewer tells the recipient the link records their visit, and you read the totals back from `/api/stats`.
 - Every artifact runs sandboxed. It loads in an isolated, opaque origin (an `allow-scripts` iframe with no same-origin access, backed by a `sandbox` directive on the bytes themselves), so its JavaScript stays interactive but cannot reach the cookies, session, or data on your domain. That holds even when someone opens the raw artifact URL directly, not only inside the viewer.
 
-How hard the email gate locks depends on whether you wire an email sender. Set `SENTOU_RESEND_KEY` and `SENTOU_EMAIL_FROM` and a verifying gated link emails a one-time code to the address someone types and only grants access once they enter it back. The email is then verified, and the domain allowlist riding on it becomes a real lock. With no sender configured the gate stays record-only: it logs the email and enforces expiry and revocation but does not confirm the address, so a typed email is a record, not a lock. In that mode the unguessable link, expiry, and revoke are the real controls, and they hold no matter what email someone enters.
+How hard the email gate locks depends on whether you wire an email sender. Set `SENTOU_RESEND_KEY` and `SENTOU_EMAIL_FROM` and a verifying gated link emails a one-time code to the address someone types and only grants access once they enter it back. The email is then verified, the domain allowlist riding on it becomes a real lock, and that verified address is the only kind Sentou ever stores. Without verification the email is access friction, not identity: a gated link asks for an address and enforces expiry and revocation, but does not confirm or store it, so a typed email is a key for that session, not a record. In that mode the unguessable link, expiry, and revoke are the real controls, and they hold no matter what email someone enters.
 
 ## How the sandbox works
 
@@ -41,8 +41,8 @@ What the sandbox does not do is stop the artifact from talking to the outside wo
 Sentou stores as little as it can, on infrastructure you control. Here is exactly what lands on disk:
 
 - **The artifact** and each version you republish.
-- **For a gated link**, the email a viewer enters. With `verifyEmail` on, that address is verified before it is stored.
-- **For a tracked link**, an open event per visit (timestamp and dwell time), attributed to the gate email or to `anon` when there is no verified viewer.
+- **For a gated link with `verifyEmail` on**, the verified email of each viewer. A gate without verification asks for an email as access friction but does not store it. Sentou never persists an address it has not verified.
+- **For a tracked link**, an open event per visit (timestamp and dwell time), attributed to a verified viewer's email or to `anon` otherwise.
 
 It all lives in one JSON file at `SENTOU_DB`, in plaintext. There is no telemetry and nothing is sent anywhere off your server. Protect that file the way you would any file of personal data: restricted permissions, and disk encryption on an exposed host. Set `SENTOU_RETENTION_DAYS` to prune viewer and event data older than a window, and use `/api/forget` to erase a link's data, or one viewer's, on request.
 
