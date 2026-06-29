@@ -70,7 +70,7 @@ export const verification = sqliteTable("verification", {
 export const organization = sqliteTable("organization", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
-  slug: text("slug").unique(),
+  slug: text("slug").notNull().unique(),
   logo: text("logo"),
   createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
   metadata: text("metadata"),
