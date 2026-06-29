@@ -6,6 +6,14 @@ export type Gate = {
   revoked: boolean;
 };
 export type Viewer = { email: string; at: string };
+export type ViewEvent = {
+  eventId: string;
+  linkId: string;
+  viewer: string;
+  version: number;
+  openedAt: string;
+  dwellMs: number;
+};
 export type Link = {
   id: string;
   slug: string;
@@ -13,6 +21,8 @@ export type Link = {
   createdAt: string;
   gate: Gate;
   viewers: Viewer[];
+  track: boolean;
+  events: ViewEvent[];
 };
 
 export interface LinkStore {
