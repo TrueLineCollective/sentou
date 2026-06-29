@@ -28,6 +28,7 @@ describe("gate routes", () => {
     // SameSite=Lax is the CSRF-relevant attribute; Path=/ scopes the cookie.
     expect(setCookie).toContain("SameSite=Lax");
     expect(setCookie).toContain("Path=/");
+    expect(setCookie).toContain("Max-Age="); // the access session expires, not a forever session cookie
     // The emitted cookie value is a real, verifiable, link-scoped token, marked unverified.
     const value = setCookie.split(";")[0].split("=").slice(1).join("=");
     expect(verifyAccessToken(decodeURIComponent(value))).toEqual({ linkId: link.id, email: "a@x.com", verified: false });
