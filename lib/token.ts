@@ -1,7 +1,15 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 
 function secret(): string {
-  return process.env.SENTOU_SECRET || "dev-insecure-sentou-secret-change-me";
+  if (process.env.SENTOU_SECRET) return process.env.SENTOU_SECRET;
+  // Fail closed in production: a missing secret means every self-hoster who forgot
+  // to set it would run with a globally-known HMAC key from this public AGPL repo,
+  // letting anyone forge access tokens. Only the named dev default survives, and
+  // only outside production.
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("SENTOU_SECRET is required in production (refusing the insecure default signing key)");
+  }
+  return "dev-insecure-sentou-secret-change-me";
 }
 function sign(body: string): string {
   return createHmac("sha256", secret()).update(body).digest("base64url");

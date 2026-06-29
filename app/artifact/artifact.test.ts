@@ -92,4 +92,41 @@ describe("artifact route", () => {
     const res = await GET(new Request("http://t/artifact/" + link.slug), { params: Promise.resolve({ slug: link.slug }) });
     expect(res.status).toBe(410);
   });
+
+  it("410s an expired link at the enforcement point", async () => {
+    const link = await createLink(getStore(), "<h1>x</h1>", { requireEmail: false, allowedDomains: null, expiresAt: "2000-01-01T00:00:00.000Z", revoked: false });
+    const { GET } = await import("@/app/artifact/[slug]/route");
+    const res = await GET(new Request("http://t/artifact/" + link.slug), { params: Promise.resolve({ slug: link.slug }) });
+    expect(res.status).toBe(410);
+  });
+
+  it("403s when a valid cookie's email domain is no longer allowed", async () => {
+    // A token can be minted while a domain is allowed; if the allowlist later excludes
+    // it the artifact route must re-deny that still-validly-signed cookie.
+    const link = await createLink(getStore(), "<h1>secret</h1>", { requireEmail: true, allowedDomains: ["acme.com"], expiresAt: null, revoked: false });
+    const token = signAccessToken({ linkId: link.id, email: "z@evil.com" });
+    const { GET } = await import("@/app/artifact/[slug]/route");
+    const res = await GET(new Request("http://t/artifact/" + link.slug, {
+      headers: { cookie: `sentou_${link.slug}=${encodeURIComponent(token)}` },
+    }), { params: Promise.resolve({ slug: link.slug }) });
+    expect(res.status).toBe(403);
+  });
+
+  it("403s a gated artifact when the cookie has a bad signature", async () => {
+    const link = await createLink(getStore(), "<h1>secret</h1>", { requireEmail: true, allowedDomains: null, expiresAt: null, revoked: false });
+    const { GET } = await import("@/app/artifact/[slug]/route");
+    const res = await GET(new Request("http://t/artifact/" + link.slug, {
+      headers: { cookie: `sentou_${link.slug}=garbage.notavalidsig` },
+    }), { params: Promise.resolve({ slug: link.slug }) });
+    expect(res.status).toBe(403);
+  });
+
+  it("treats a malformed cookie value as absent (403, not 500)", async () => {
+    const link = await createLink(getStore(), "<h1>secret</h1>", { requireEmail: true, allowedDomains: null, expiresAt: null, revoked: false });
+    const { GET } = await import("@/app/artifact/[slug]/route");
+    const res = await GET(new Request("http://t/artifact/" + link.slug, {
+      headers: { cookie: `sentou_${link.slug}=%zz` },
+    }), { params: Promise.resolve({ slug: link.slug }) });
+    expect(res.status).toBe(403);
+  });
 });

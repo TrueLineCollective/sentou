@@ -3,7 +3,7 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { createFileStore } from "@/lib/store";
-import { createLink, republish, currentHtml } from "@/lib/links";
+import { createLink, republish, recordViewer, currentHtml } from "@/lib/links";
 
 describe("file store", () => {
   it("persists links across separate store instances", async () => {
@@ -16,5 +16,19 @@ describe("file store", () => {
     const reloaded = await b.getBySlug(link.slug);
     expect(reloaded).not.toBeNull();
     expect(currentHtml(reloaded!)).toBe("<h1>v2</h1>");
+  });
+
+  it("round-trips the gate and recorded viewers through a fresh store instance", async () => {
+    const file = path.join(mkdtempSync(path.join(tmpdir(), "sentou-")), "db.json");
+    const a = createFileStore(file);
+    const link = await createLink(a, "<h1>x</h1>", {
+      requireEmail: true, allowedDomains: ["acme.com"], expiresAt: "2030-01-01T00:00:00.000Z", revoked: false,
+    });
+    await recordViewer(a, link.id, "a@acme.com");
+
+    const b = createFileStore(file); // fresh instance, same file
+    const reloaded = await b.getBySlug(link.slug);
+    expect(reloaded!.gate).toEqual({ requireEmail: true, allowedDomains: ["acme.com"], expiresAt: "2030-01-01T00:00:00.000Z", revoked: false });
+    expect(reloaded!.viewers.map((v) => v.email)).toEqual(["a@acme.com"]);
   });
 });
