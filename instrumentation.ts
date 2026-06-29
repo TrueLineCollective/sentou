@@ -3,8 +3,20 @@
 // links or open endpoints later. SENTOU_SECRET's absence already throws on first crypto use, so
 // it isn't repeated here.
 export async function register() {
-  // register() is called in every runtime; only warn from the Node server process.
+  // register() is called in every runtime (nodejs + edge); only run from the Node server process.
+  // NEXT_RUNTIME is "nodejs" in the Node runtime and "edge" in the Edge runtime.
+  // When NEXT_RUNTIME is undefined we are in a standard Node process (e.g. `next dev`), so treat
+  // undefined the same as "nodejs".
   if (process.env.NEXT_RUNTIME && process.env.NEXT_RUNTIME !== "nodejs") return;
+
+  // Apply all pending DB migrations at boot so every table (domain + auth) exists before the
+  // first request arrives. Without this, hitting /api/auth/* on a fresh DB would fail because
+  // the Better Auth tables would not yet exist (getStore() applies migrations lazily, but the
+  // auth handler bypasses getStore()).
+  const { migrate } = await import("drizzle-orm/better-sqlite3/migrator");
+  const { getDb } = await import("@/lib/db/client");
+  migrate(getDb(), { migrationsFolder: "lib/db/migrations" });
+
   if (process.env.NODE_ENV !== "production") return;
 
   const warn = (m: string) => console.warn(`[sentou] ${m}`);
