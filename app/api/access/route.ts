@@ -1,12 +1,13 @@
 import { getLinkBySlug, resetVerifyAttempt } from "@/lib/links";
 import { getStore, linkUrl } from "@/lib/server-store";
 import { evaluateAccess } from "@/lib/access";
-import { signAccessToken } from "@/lib/token";
+import { signAccessToken, ACCESS_TTL_MS } from "@/lib/token";
 import { cookieName, verifyCookieName } from "@/lib/cookies";
 import { newCode, sealVerify } from "@/lib/verify";
 import { getSender } from "@/lib/email";
 import { cleanEmail } from "@/lib/email-format";
 import { rateLimit, clientIp } from "@/lib/rate-limit";
+import { secureCookies } from "@/lib/owner";
 
 export async function POST(req: Request) {
   // The shipped viewer submits a native HTML <form> (application/x-www-form-urlencoded);
@@ -65,7 +66,7 @@ export async function POST(req: Request) {
     const code = newCode();
     const token = sealVerify({ slug, email, code, exp: Date.now() + 600_000 });
     await getSender().sendCode(email, code);
-    const verifyCookie = `${verifyCookieName(slug)}=${token}; HttpOnly; Path=/; SameSite=Lax; Max-Age=600${process.env.NODE_ENV === "production" ? "; Secure" : ""}`;
+    const verifyCookie = `${verifyCookieName(slug)}=${token}; HttpOnly; Path=/; SameSite=Lax; Max-Age=600${secureCookies() ? "; Secure" : ""}`;
     if (isForm) {
       // The email rides in the sealed verify cookie, not the redirect URL: a ?email= query lands
       // in proxy access logs and browser history, which is a needless exposure of the recipient.
@@ -83,8 +84,8 @@ export async function POST(req: Request) {
   // persist it. Sentou only ever stores an address it verified. The email rides in the cookie so
   // this session's domain-allowlist check still works; enable verifyEmail to capture viewers.
   const token = signAccessToken({ linkId: link.id, email, verified: false });
-  const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
-  const cookie = `${cookieName(slug)}=${encodeURIComponent(token)}; HttpOnly; Path=/; SameSite=Lax${secure}`;
+  const secure = secureCookies() ? "; Secure" : "";
+  const cookie = `${cookieName(slug)}=${encodeURIComponent(token)}; HttpOnly; Path=/; SameSite=Lax; Max-Age=${ACCESS_TTL_MS / 1000}${secure}`;
 
   if (isForm) {
     return new Response(null, { status: 303, headers: { location: `/v/${slug}`, "set-cookie": cookie } });

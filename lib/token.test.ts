@@ -10,6 +10,11 @@ describe("access token", () => {
     const t = signAccessToken({ linkId: "L1", email: "a@x.com", verified: true });
     expect(verifyAccessToken(t)).toEqual({ linkId: "L1", email: "a@x.com", verified: true });
   });
+  it("expires the access session (rejects a token past its TTL)", () => {
+    const t = signAccessToken({ linkId: "L1", email: "a@x.com" });
+    expect(verifyAccessToken(t)).not.toBeNull(); // valid now
+    expect(verifyAccessToken(t, Date.now() + 8 * 24 * 3600_000)).toBeNull(); // 8 days out, past the 7-day TTL
+  });
   it("rejects a tampered payload (signature mismatch)", () => {
     const t = signAccessToken({ linkId: "L1", email: "a@x.com" });
     const [, sig] = t.split(".");

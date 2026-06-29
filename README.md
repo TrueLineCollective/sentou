@@ -32,7 +32,7 @@ How hard the email gate locks depends on whether you wire an email sender. Set `
 
 ## How the sandbox works
 
-A Sentou artifact is arbitrary HTML and JavaScript that other people load in their own browsers. That is a real attack surface, and it is the part that took the most care to get right. The artifact is served with `Content-Security-Policy: sandbox allow-scripts` and rendered inside an `allow-scripts` iframe with no `allow-same-origin`. The scripts still run, so the artifact stays interactive, but the browser hands them an opaque origin with no path back to the parent page or its data. The access check sits at the route that serves the bytes, not only in the page that frames them, so editing the URL does not get past the gate.
+A Sentou artifact is arbitrary HTML and JavaScript that other people load in their own browsers. That is a real attack surface, and it is the part that took the most care to get right. The artifact is served with a `sandbox allow-scripts` directive in its `Content-Security-Policy` and rendered inside an `allow-scripts` iframe with no `allow-same-origin`. The CSP also permits inline and `eval`'d scripts and HTTPS resources, because the artifact needs to run its own code; the load-bearing isolation is the `sandbox` directive, not those source lists. The scripts still run, so the artifact stays interactive, but the browser hands them an opaque origin with no path back to the parent page or its data. The access check sits at the route that serves the bytes, not only in the page that frames them, so editing the URL does not get past the gate.
 
 What the sandbox does not do is stop the artifact from talking to the outside world. Like any web page, its own JavaScript can make network requests. The opaque origin protects your site and your other links from the artifact, not the artifact's own traffic, so treat a published artifact like code you are choosing to run: only publish ones you trust.
 
@@ -75,10 +75,10 @@ To turn the email gate into a real boundary, pass `verifyEmail: true` at publish
 
 ### Publishing from Claude
 
-Sentou ships an MCP server, so you can publish without leaving a Claude session. Run this from the repo root, with `npm run dev` already running so the server has an instance to publish to:
+Sentou ships an MCP server, so you can publish without leaving a Claude session. `claude mcp add` stores the command globally, so use an **absolute path** to `mcp/server.ts`, otherwise the server fails to start whenever you open Claude from another directory. Run this from the repo root (with `npm run dev` already running so there is an instance to publish to); `$(pwd)` bakes in the absolute path:
 
 ```bash
-claude mcp add sentou -- npx tsx mcp/server.ts
+claude mcp add sentou -- npx tsx "$(pwd)/mcp/server.ts"
 ```
 
 Claude gets two tools, `publish_artifact(html)` and `republish(id, html)`. If your instance is not on localhost, or you have set an owner token, pass both through the MCP server's environment, otherwise a hardened instance answers the publish call with a bare `401`:
@@ -87,12 +87,14 @@ Claude gets two tools, `publish_artifact(html)` and `republish(id, html)`. If yo
 claude mcp add sentou \
   --env SENTOU_URL=https://sentou.yourdomain.com \
   --env SENTOU_OWNER_TOKEN=your-owner-token \
-  -- npx tsx mcp/server.ts
+  -- npx tsx "$(pwd)/mcp/server.ts"
 ```
 
 ## Deploying
 
 `npm run dev` is for local work, not the internet. Sentou keeps its data in a single JSON file on local disk, so run it as **one instance with a persistent volume**. Do not deploy it to a serverless or autoscaling platform (Vercel Functions, multi-replica containers): each instance would get its own store and your links would scatter across them. One container, one disk.
+
+The store reads and rewrites that whole JSON file on each change. That is fine for personal and team scale (dozens of links, thousands of events) and keeps the dependency surface at zero, but it is not built for high traffic. Heavy, multi-tenant volume is what the hosted tier is for. Put a reverse proxy you control (Caddy, nginx, your platform's ingress) in front for TLS and so the per-IP rate limiting can trust its client address.
 
 ### With Docker
 
@@ -138,11 +140,12 @@ curl -X POST $URL/api/publish -H "authorization: Bearer $TOKEN" -H 'content-type
 }'
 # -> { "id", "slug", "url", "version" }
 
-curl -X POST $URL/api/republish -H "authorization: Bearer $TOKEN" -d '{"id":"...","html":"<h1>v2</h1>"}'
-curl -X POST $URL/api/revoke    -H "authorization: Bearer $TOKEN" -d '{"id":"..."}'
-curl     "$URL/api/stats?id=..." -H "authorization: Bearer $TOKEN"     # -> { totalOpens, viewers[] }
-curl -X POST $URL/api/forget   -H "authorization: Bearer $TOKEN" -d '{"id":"..."}'            # erase all viewer data for a link
-curl -X POST $URL/api/forget   -H "authorization: Bearer $TOKEN" -d '{"id":"...","email":"a@acme.com"}'  # erase one viewer
+CT='content-type: application/json'
+curl -X POST $URL/api/republish -H "authorization: Bearer $TOKEN" -H "$CT" -d '{"id":"...","html":"<h1>v2</h1>"}'
+curl -X POST $URL/api/revoke    -H "authorization: Bearer $TOKEN" -H "$CT" -d '{"id":"..."}'
+curl     "$URL/api/stats?id=..." -H "authorization: Bearer $TOKEN"     # -> { linkId, totalOpens, viewers[] }
+curl -X POST $URL/api/forget   -H "authorization: Bearer $TOKEN" -H "$CT" -d '{"id":"..."}'            # erase all viewer data for a link
+curl -X POST $URL/api/forget   -H "authorization: Bearer $TOKEN" -H "$CT" -d '{"id":"...","email":"a@acme.com"}'  # erase one viewer
 ```
 
 `/api/access` (submit an email to a gated link), `/api/access/verify` (submit the emailed code), and `/api/track` (the viewer's open and close beacons) are unauthenticated by design, since recipients are not the owner. They are rate limited.

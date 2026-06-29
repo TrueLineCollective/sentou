@@ -8,6 +8,11 @@ export async function POST(req: Request) {
   const rl = rateLimit(`publish:${clientIp(req)}`, 60, 60_000);
   if (!rl.ok) return Response.json({ error: "rate limited" }, { status: 429, headers: { "retry-after": String(rl.retryAfterSec) } });
   if (!requireOwner(req)) return Response.json({ error: "unauthorized" }, { status: 401 });
+  // Cap the body before parsing: even an authed caller shouldn't be able to POST gigabytes of
+  // HTML, which the whole-file-rewrite store would then re-serialize on every later write.
+  if (Number(req.headers.get("content-length") || 0) > 5_000_000) {
+    return Response.json({ error: "request too large" }, { status: 413 });
+  }
   const body = await req.json().catch(() => ({}));
   const html = typeof body.html === "string" ? body.html : "";
   if (!html.trim()) return Response.json({ error: "html is required" }, { status: 400 });
