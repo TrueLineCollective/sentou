@@ -1,7 +1,7 @@
 const base = () => process.env.SENTOU_URL ?? "http://localhost:3000";
 
 function authHeaders(): Record<string, string> {
-  return process.env.SENTOU_OWNER_TOKEN ? { authorization: `Bearer ${process.env.SENTOU_OWNER_TOKEN}` } : {};
+  return process.env.SENTOU_API_KEY ? { authorization: `Bearer ${process.env.SENTOU_API_KEY}` } : {};
 }
 
 export async function publishArtifact(html: string) {

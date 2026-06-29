@@ -6,7 +6,7 @@ import { publishArtifact, republishArtifact } from "@/mcp/client";
 
 afterEach(() => {
   vi.restoreAllMocks();
-  delete process.env.SENTOU_OWNER_TOKEN;
+  delete process.env.SENTOU_API_KEY;
 });
 
 describe("mcp http client", () => {
@@ -41,8 +41,8 @@ describe("mcp http client", () => {
     await expect(publishArtifact("<p>x</p>")).rejects.toThrow(/publish failed: 500/);
   });
 
-  it("sends the owner bearer when SENTOU_OWNER_TOKEN is set", async () => {
-    process.env.SENTOU_OWNER_TOKEN = "owner-secret";
+  it("sends the api key bearer when SENTOU_API_KEY is set", async () => {
+    process.env.SENTOU_API_KEY = "sk-test-abc123";
     const fetchMock = vi.fn(async () =>
       new Response(JSON.stringify({ id: "a", slug: "s", url: "http://x/v/s", version: 1 })),
     );
@@ -50,11 +50,11 @@ describe("mcp http client", () => {
     await publishArtifact("<h1>x</h1>");
     const init = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
     const headers = init[1].headers as Record<string, string>;
-    expect(headers.authorization).toBe("Bearer owner-secret");
+    expect(headers.authorization).toBe("Bearer sk-test-abc123");
   });
 
-  it("omits the authorization header when SENTOU_OWNER_TOKEN is unset", async () => {
-    delete process.env.SENTOU_OWNER_TOKEN;
+  it("omits the authorization header when SENTOU_API_KEY is unset", async () => {
+    delete process.env.SENTOU_API_KEY;
     const fetchMock = vi.fn(async () =>
       new Response(JSON.stringify({ id: "a", slug: "s", url: "http://x/v/s", version: 1 })),
     );
