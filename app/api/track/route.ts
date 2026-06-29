@@ -1,11 +1,19 @@
 import { recordOpen, recordClose } from "@/lib/links";
 import { getStore } from "@/lib/server-store";
 import { verifyTrackToken } from "@/lib/track-token";
+import { rateLimit, clientIp } from "@/lib/rate-limit";
 
 export async function POST(req: Request) {
+  // Unauthenticated beacon route: rate-limit per IP and cap the body before parsing. These
+  // payloads are a few hundred bytes; reject anything that declares or delivers more.
+  const rl = rateLimit(`track:${clientIp(req)}`, 120, 60_000);
+  if (!rl.ok) return new Response(null, { status: 429, headers: { "retry-after": String(rl.retryAfterSec) } });
+  if (Number(req.headers.get("content-length") || 0) > 4096) return new Response(null, { status: 413 });
+
   let body: { token?: string; type?: string; dwellMs?: number };
   try {
     const text = await req.text();
+    if (text.length > 4096) return new Response(null, { status: 413 });
     body = JSON.parse(text);
   } catch {
     return new Response(null, { status: 400 });

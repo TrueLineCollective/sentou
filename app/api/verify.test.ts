@@ -5,8 +5,9 @@ import { getStore } from "@/lib/server-store";
 import { sealVerify } from "@/lib/verify";
 import { verifyAccessToken } from "@/lib/token";
 import { verifyCookieName, cookieName } from "@/lib/cookies";
+import { __resetRateLimits } from "@/lib/rate-limit";
 
-beforeEach(() => { process.env.SENTOU_DB = path.join(mkdtempSync(path.join(tmpdir(), "sentou-")), "db.json"); });
+beforeEach(() => { process.env.SENTOU_DB = path.join(mkdtempSync(path.join(tmpdir(), "sentou-")), "db.json"); __resetRateLimits(); });
 
 async function gated() {
   return createLink(getStore(), "<h1>secret</h1>", { requireEmail: true, allowedDomains: null, expiresAt: null, revoked: false }, false, true);
@@ -95,6 +96,20 @@ describe("/api/access/verify", () => {
     }));
     expect(res.status).toBe(403);
     expect(res.headers.get("set-cookie")).toBeNull();
+  });
+
+  it("a no-cookie attacker who knows {slug,email} cannot burn the recipient's attempt budget", async () => {
+    const link = await gated();
+    const { POST } = await import("@/app/api/access/verify/route");
+    // 10 code POSTs with NO verify cookie: each is rejected without spending an attempt.
+    for (let i = 0; i < 10; i++) {
+      const r = await POST(new Request("http://t/api/access/verify", { method: "POST", body: JSON.stringify({ slug: link.slug, email: "a@x.com", code: "000000" }) }));
+      expect(r.status).toBe(401);
+    }
+    // The legitimate recipient, holding a real verify cookie, still has the full budget intact:
+    // their correct code is accepted (it would be 429-locked if the attacker had burned it).
+    const ok = await POST(new Request("http://t/api/access/verify", { method: "POST", headers: { cookie: withCode(link.slug, "a@x.com", "111222") }, body: JSON.stringify({ slug: link.slug, email: "a@x.com", code: "111222" }) }));
+    expect(ok.status).toBe(200);
   });
 
   it("locks the code after 5 attempts, so the 6th is refused even when correct (brute-force cap)", async () => {
