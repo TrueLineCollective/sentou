@@ -4,6 +4,7 @@ import { getLinkBySlug } from "@/lib/links";
 import { getStore } from "@/lib/server-store";
 import { verifyAccessToken } from "@/lib/token";
 import { gateState } from "@/lib/gate-view";
+import { trackingContext } from "@/lib/tracking-context";
 
 export default async function ViewerPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
@@ -29,9 +30,30 @@ export default async function ViewerPage({ params }: { params: Promise<{ slug: s
       </main>
     );
   }
+  const tracking = trackingContext(link, claim);
+  const iframe = (
+    <iframe title="artifact" src={`/artifact/${slug}`} sandbox="allow-scripts" style={{ flex: 1, width: "100%", border: "none" }} />
+  );
   return (
     <main style={{ height: "100dvh", display: "flex", flexDirection: "column" }}>
-      <iframe title="artifact" src={`/artifact/${slug}`} sandbox="allow-scripts" style={{ flex: 1, width: "100%", border: "none" }} />
+      {tracking.track ? (
+        <>
+          {iframe}
+          <script
+            dangerouslySetInnerHTML={{
+              __html:
+                `(function(){var t=${JSON.stringify(tracking.token)},s=Date.now();` +
+                `function send(type,extra){try{navigator.sendBeacon('/api/track',new Blob([JSON.stringify(Object.assign({token:t,type:type},extra||{}))],{type:'application/json'}))}catch(e){}}` +
+                `send('open');` +
+                `addEventListener('pagehide',function(){send('close',{dwellMs:Date.now()-s})});` +
+                `document.addEventListener('visibilitychange',function(){if(document.visibilityState==='hidden')send('close',{dwellMs:Date.now()-s})});` +
+                `})();`,
+            }}
+          />
+        </>
+      ) : (
+        iframe
+      )}
     </main>
   );
 }
