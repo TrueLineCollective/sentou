@@ -1,6 +1,6 @@
-# Sentou
-
-*From me, to you.*
+<p align="center">
+  <img src="assets/banner.png" alt="Sentou — from me, to you" width="820" />
+</p>
 
 [![CI](https://github.com/TrueLineCollective/sentou/actions/workflows/ci.yml/badge.svg)](https://github.com/TrueLineCollective/sentou/actions/workflows/ci.yml)
 [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](./LICENSE)
