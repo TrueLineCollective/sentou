@@ -22,7 +22,6 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage",
     "mcp": "tsx mcp/server.ts"
   },
   "dependencies": {
