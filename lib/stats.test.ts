@@ -58,4 +58,13 @@ describe("tracking events + aggregate", () => {
     expect(reloaded!.events).toHaveLength(1);
     expect(reloaded!.events[0].dwellMs).toBe(5000);
   });
+
+  it("a later, smaller close does not shrink recorded dwell", async () => {
+    const store = createMemoryStore();
+    const link = await createLink(store, "<h1>x</h1>", undefined, true);
+    await recordOpen(store, { eventId: "e1", linkId: link.id, viewer: "a@x.com", version: 1, openedAt: "2026-06-29T00:00:00.000Z", dwellMs: 0 });
+    await recordClose(store, link.id, "e1", 5000);
+    await recordClose(store, link.id, "e1", 1000);
+    expect((await store.get(link.id))!.events[0].dwellMs).toBe(5000);
+  });
 });
