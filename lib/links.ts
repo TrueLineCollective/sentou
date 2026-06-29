@@ -70,6 +70,10 @@ function pruneRetention(link: Link): void {
   if (cutoff === null) return;
   link.events = link.events.filter((e) => new Date(e.openedAt).getTime() >= cutoff);
   link.viewers = link.viewers.filter((v) => new Date(v.at).getTime() >= cutoff);
+  // verifyAttempts is keyed by email with no timestamp, so it can't be pruned by age; clear it
+  // under retention so addresses don't linger here as keys past the window. Counts are transient
+  // (reset on a fresh code anyway), so dropping them only resets a stale per-code budget.
+  link.verifyAttempts = {};
 }
 
 export function recordOpen(store: LinkStore, e: ViewEvent): Promise<void> {

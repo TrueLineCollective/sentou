@@ -47,3 +47,6 @@ next-env.d.ts
 # internal strategy notes, not for the public repo
 /docs/strategy/
 /docs/superpowers/
+
+# local agent helper (kept out of the public repo; AGENTS.md is the public-facing version)
+/CLAUDE.md
