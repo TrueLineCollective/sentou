@@ -4,9 +4,18 @@
 
 [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](./LICENSE)
 
+<p align="center">
+  <img src="assets/hero.png" alt="A private investor update shared through Sentou" width="820" />
+</p>
+
 Sentou publishes a Claude artifact, or any HTML, to a private link you control. You decide who can open it. You keep editing in place, and the link never breaks. Everything runs on your own infrastructure, so the document and the list of people who opened it stay on a server you own.
 
 Sharing something you made in Claude usually means one of two compromises: drop it at a public URL and hope it stays put, or hand it to a platform whose business is tracking who reads your work. Sentou is the alternative to both.
+
+<p align="center">
+  <img src="assets/loop.gif" alt="The same Sentou link updating from one version to the next" width="820" />
+  <br /><sub>Publish once, then keep editing in Claude. The link stays the same.</sub>
+</p>
 
 This is early. The core works and is covered by tests, but a good part of the roadmap below is still ahead. I build it in the open and keep this page honest about what is shipped and what is still planned.
 
