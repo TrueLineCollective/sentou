@@ -5,15 +5,19 @@ import path from "node:path";
 import { createLink } from "@/lib/links";
 import { getStore } from "@/lib/server-store";
 import { signTrackToken } from "@/lib/track-token";
+import { __resetRateLimits } from "@/lib/rate-limit";
+
+const future = () => Date.now() + 600_000;
 
 beforeEach(() => {
   process.env.SENTOU_DB = path.join(mkdtempSync(path.join(tmpdir(), "sentou-")), "db.json");
+  __resetRateLimits();
 });
 
 describe("/api/track", () => {
   it("records an open then a close with dwell", async () => {
     const link = await createLink(getStore(), "<h1>x</h1>", undefined, true);
-    const token = signTrackToken({ linkId: link.id, version: 1, viewer: "a@x.com", eventId: "ev1" });
+    const token = signTrackToken({ linkId: link.id, version: 1, viewer: "a@x.com", eventId: "ev1", exp: future() });
     const { POST } = await import("@/app/api/track/route");
 
     const open = await POST(new Request("http://t/api/track", { method: "POST", body: JSON.stringify({ token, type: "open" }) }));
@@ -49,7 +53,7 @@ describe("/api/track", () => {
     for (const [eventId, bad] of [["neg", -5], ["nan", "abc"]] as const) {
       const link = await createLink(getStore(), "<h1>x</h1>", undefined, true);
       await recordOpen(getStore(), { eventId, linkId: link.id, viewer: "a@x.com", version: 1, openedAt: new Date().toISOString(), dwellMs: 0 });
-      const token = signTrackToken({ linkId: link.id, version: 1, viewer: "a@x.com", eventId });
+      const token = signTrackToken({ linkId: link.id, version: 1, viewer: "a@x.com", eventId, exp: future() });
       const res = await POST(new Request("http://t/api/track", { method: "POST", body: JSON.stringify({ token, type: "close", dwellMs: bad }) }));
       expect(res.status).toBe(204);
       const reloaded = await getLinkBySlug(getStore(), link.slug);
@@ -59,7 +63,7 @@ describe("/api/track", () => {
 
   it("204s and records nothing for an unknown event type", async () => {
     const link = await createLink(getStore(), "<h1>x</h1>", undefined, true);
-    const token = signTrackToken({ linkId: link.id, version: 1, viewer: "a@x.com", eventId: "ev" });
+    const token = signTrackToken({ linkId: link.id, version: 1, viewer: "a@x.com", eventId: "ev", exp: future() });
     const { POST } = await import("@/app/api/track/route");
     const res = await POST(new Request("http://t/api/track", { method: "POST", body: JSON.stringify({ token, type: "weird" }) }));
     expect(res.status).toBe(204);
@@ -69,7 +73,7 @@ describe("/api/track", () => {
 
   it("204s and records nothing for a close before any open", async () => {
     const link = await createLink(getStore(), "<h1>x</h1>", undefined, true);
-    const token = signTrackToken({ linkId: link.id, version: 1, viewer: "a@x.com", eventId: "ghost" });
+    const token = signTrackToken({ linkId: link.id, version: 1, viewer: "a@x.com", eventId: "ghost", exp: future() });
     const { POST } = await import("@/app/api/track/route");
     const res = await POST(new Request("http://t/api/track", { method: "POST", body: JSON.stringify({ token, type: "close", dwellMs: 1000 }) }));
     expect(res.status).toBe(204);

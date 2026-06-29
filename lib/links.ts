@@ -57,10 +57,26 @@ export function createLink(
   });
 }
 
+// Retention: when SENTOU_RETENTION_DAYS is set, drop stored viewer rows and tracking events older
+// than the window. Pruning runs opportunistically at the points where data is added, so an active
+// link self-limits; idle links keep their data until the next write or an explicit /api/forget.
+function retentionCutoff(): number | null {
+  const days = Number(process.env.SENTOU_RETENTION_DAYS);
+  if (!Number.isFinite(days) || days <= 0) return null;
+  return Date.now() - days * 86_400_000;
+}
+function pruneRetention(link: Link): void {
+  const cutoff = retentionCutoff();
+  if (cutoff === null) return;
+  link.events = link.events.filter((e) => new Date(e.openedAt).getTime() >= cutoff);
+  link.viewers = link.viewers.filter((v) => new Date(v.at).getTime() >= cutoff);
+}
+
 export function recordOpen(store: LinkStore, e: ViewEvent): Promise<void> {
   return serializeWrite(async () => {
     const link = await store.get(e.linkId);
     if (!link) return;
+    pruneRetention(link);
     const i = link.events.findIndex((x) => x.eventId === e.eventId);
     if (i >= 0) {
       // A close beacon fires from both pagehide and visibilitychange, and beacons have
@@ -89,6 +105,7 @@ export function recordViewer(store: LinkStore, id: string, email: string): Promi
   return serializeWrite(async () => {
     const link = await store.get(id);
     if (!link) throw new Error("link not found");
+    pruneRetention(link);
     if (link.viewers.some((v) => v.email === email)) return link;
     link.viewers.push({ email, at: new Date().toISOString() });
     if (link.viewers.length > 5000) link.viewers = link.viewers.slice(-5000);
@@ -143,6 +160,33 @@ export function republish(store: LinkStore, id: string, html: string): Promise<L
     if (!link) throw new Error("link not found");
     const nextVersion = link.versions.length + 1;
     link.versions.push({ version: nextVersion, html, createdAt: new Date().toISOString() });
+    await store.put(link);
+    return link;
+  });
+}
+
+// GDPR-style erasure (Art. 17). purgeLinkData clears all recipient data for a link, keeping the
+// artifact and its versions so the link still works. eraseViewer removes a single subject's row
+// and their tracking events. Both are exposed through the owner-authed /api/forget endpoint.
+export function purgeLinkData(store: LinkStore, id: string): Promise<Link> {
+  return serializeWrite(async () => {
+    const link = await store.get(id);
+    if (!link) throw new Error("link not found");
+    link.viewers = [];
+    link.events = [];
+    link.verifyAttempts = {};
+    await store.put(link);
+    return link;
+  });
+}
+
+export function eraseViewer(store: LinkStore, id: string, email: string): Promise<Link> {
+  return serializeWrite(async () => {
+    const link = await store.get(id);
+    if (!link) throw new Error("link not found");
+    link.viewers = link.viewers.filter((v) => v.email !== email);
+    link.events = link.events.filter((e) => e.viewer !== email);
+    if (link.verifyAttempts) delete link.verifyAttempts[email];
     await store.put(link);
     return link;
   });

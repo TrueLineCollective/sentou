@@ -3,7 +3,9 @@ import { cookies } from "next/headers";
 import { getLinkBySlug } from "@/lib/links";
 import { getStore } from "@/lib/server-store";
 import { verifyAccessToken } from "@/lib/token";
-import { cookieName } from "@/lib/cookies";
+import { cookieName, verifyCookieName } from "@/lib/cookies";
+import { openVerify } from "@/lib/verify";
+import { emailConfigured } from "@/lib/email";
 import { gateState } from "@/lib/gate-view";
 import { trackingContext } from "@/lib/tracking-context";
 
@@ -28,19 +30,26 @@ export default async function ViewerPage({
   if (state === "form") {
     const sp = searchParams ? await searchParams : {};
     const step = typeof sp.step === "string" ? sp.step : undefined;
-    // Step two of verification: the access route emailed a code and bounced us
-    // here with ?step=code&email=…, carrying the verify cookie. Collect the code.
-    if (link.verifyEmail && step === "code") {
-      const carriedEmail = typeof sp.email === "string" ? sp.email : "";
+    // Step two of verification: the access route emailed a code and bounced us here with
+    // ?step=code, carrying the verify cookie. The address rides in that sealed cookie (never in
+    // the URL), so read it back here. A missing/expired cookie just falls through to step one.
+    const verifyClaim = openVerify(cookieStore.get(verifyCookieName(slug))?.value);
+    if (link.verifyEmail && step === "code" && verifyClaim && verifyClaim.slug === slug) {
+      const consoleMode = !emailConfigured();
       return (
         <main style={{ padding: 48, fontFamily: "system-ui", maxWidth: 420 }}>
           <h1 style={{ fontSize: 20 }}>Enter the code we emailed you</h1>
           <form method="POST" action={`/api/access/verify?slug=${slug}`} style={{ display: "flex", gap: 8, marginTop: 16 }}>
             <input type="hidden" name="slug" value={slug} />
-            <input type="hidden" name="email" value={carriedEmail} />
+            <input type="hidden" name="email" value={verifyClaim.email} />
             <input type="text" name="code" inputMode="numeric" autoComplete="one-time-code" required placeholder="6-digit code" style={{ flex: 1, padding: 8 }} />
             <button type="submit" style={{ padding: "8px 16px" }}>Verify</button>
           </form>
+          {consoleMode && (
+            <p style={{ marginTop: 12, fontSize: 13, color: "#666" }}>
+              Local test mode: no email sender is configured, so your code was printed to the server console.
+            </p>
+          )}
         </main>
       );
     }
@@ -62,23 +71,26 @@ export default async function ViewerPage({
   );
   return (
     <main style={{ height: "100dvh", display: "flex", flexDirection: "column" }}>
-      {tracking.track ? (
-        <>
-          {iframe}
-          <script
-            dangerouslySetInnerHTML={{
-              __html:
-                `(function(){var t=${JSON.stringify(tracking.token)},s=Date.now();` +
-                `function send(type,extra){try{navigator.sendBeacon('/api/track',new Blob([JSON.stringify(Object.assign({token:t,type:type},extra||{}))],{type:'application/json'}))}catch(e){}}` +
-                `send('open');` +
-                `addEventListener('pagehide',function(){send('close',{dwellMs:Date.now()-s})});` +
-                `document.addEventListener('visibilitychange',function(){if(document.visibilityState==='hidden')send('close',{dwellMs:Date.now()-s})});` +
-                `})();`,
-            }}
-          />
-        </>
-      ) : (
-        iframe
+      {tracking.track && (
+        // Recipient-facing disclosure: be honest that an opened link is recorded. The sender,
+        // not Sentou, is responsible for whatever they do with it.
+        <div style={{ padding: "6px 12px", fontSize: 12, color: "#555", background: "#f5f5f7", borderBottom: "1px solid #e5e5ea", fontFamily: "system-ui" }}>
+          The sender of this link can see when it is opened and how long it stays open.
+        </div>
+      )}
+      {iframe}
+      {tracking.track && (
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              `(function(){var t=${JSON.stringify(tracking.token)},s=Date.now();` +
+              `function send(type,extra){try{navigator.sendBeacon('/api/track',new Blob([JSON.stringify(Object.assign({token:t,type:type},extra||{}))],{type:'application/json'}))}catch(e){}}` +
+              `send('open');` +
+              `addEventListener('pagehide',function(){send('close',{dwellMs:Date.now()-s})});` +
+              `document.addEventListener('visibilitychange',function(){if(document.visibilityState==='hidden')send('close',{dwellMs:Date.now()-s})});` +
+              `})();`,
+          }}
+        />
       )}
     </main>
   );

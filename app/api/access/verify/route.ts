@@ -4,6 +4,8 @@ import { evaluateAccess } from "@/lib/access";
 import { openVerify } from "@/lib/verify";
 import { signAccessToken } from "@/lib/token";
 import { cookieName, verifyCookieName } from "@/lib/cookies";
+import { cleanEmail } from "@/lib/email-format";
+import { rateLimit, clientIp } from "@/lib/rate-limit";
 import { timingSafeEqual } from "node:crypto";
 
 function readCookie(req: Request, name: string): string | null {
@@ -28,8 +30,17 @@ export async function POST(req: Request) {
   const ct = req.headers.get("content-type") ?? "";
   const isForm = ct.includes("application/x-www-form-urlencoded") || ct.includes("multipart/form-data");
 
+  const fail = (status: number, reason: string, headers?: Record<string, string>) =>
+    isForm
+      ? new Response(reason, { status, headers: { "content-type": "text/plain; charset=utf-8", ...headers } })
+      : Response.json({ error: reason }, { status, headers });
+
+  const rl = rateLimit(`verify:${clientIp(req)}`, 30, 60_000);
+  if (!rl.ok) return fail(429, "too many requests; slow down", { "retry-after": String(rl.retryAfterSec) });
+  if (Number(req.headers.get("content-length") || 0) > 8192) return fail(413, "request too large");
+
   let slug: string | undefined;
-  let email: string | undefined;
+  let rawEmail: string | undefined;
   let code: string | undefined;
   if (isForm) {
     const form = await req.formData().catch(() => null);
@@ -37,12 +48,12 @@ export async function POST(req: Request) {
     const e = form?.get("email");
     const c = form?.get("code");
     slug = typeof s === "string" ? s : undefined;
-    email = typeof e === "string" ? e : undefined;
+    rawEmail = typeof e === "string" ? e : undefined;
     code = typeof c === "string" ? c : undefined;
   } else {
     const body = await req.json().catch(() => ({}));
     if (typeof body.slug === "string") slug = body.slug;
-    if (typeof body.email === "string") email = body.email;
+    if (typeof body.email === "string") rawEmail = body.email;
     if (typeof body.code === "string") code = body.code;
   }
   if (!slug) {
@@ -50,21 +61,25 @@ export async function POST(req: Request) {
     if (q) slug = q;
   }
 
-  const fail = (status: number, reason: string) =>
-    isForm
-      ? new Response(reason, { status, headers: { "content-type": "text/plain; charset=utf-8" } })
-      : Response.json({ error: reason }, { status });
-
-  if (!slug || !email || !code) return fail(400, "slug, email, code required");
+  if (!slug || !rawEmail || !code) return fail(400, "slug, email, code required");
+  const email = cleanEmail(rawEmail);
+  if (!email) return fail(400, "a valid email is required");
   const link = await getLinkBySlug(getStore(), slug);
   if (!link) return fail(404, "not found");
+
+  // Read the verify cookie BEFORE spending any attempt budget. Only a request that carries a
+  // real, unexpired verify cookie for this {slug,email} can consume the per-code attempts;
+  // otherwise a third party who merely knows {slug,email} could POST junk codes with no cookie
+  // and burn the budget to 429-lock the genuine recipient. Same generic 401 for both cases so
+  // we don't reveal whether a cookie was present.
+  const claim = openVerify(readCookie(req, verifyCookieName(slug)));
+  const cookieValid = !!claim && claim.slug === slug && claim.email === email && Date.now() < claim.exp;
+  if (!cookieValid) return fail(401, "invalid or expired code");
 
   const attempts = await bumpVerifyAttempt(getStore(), link.id, email);
   if (attempts > 5) return fail(429, "too many attempts; request a new code");
 
-  const claim = openVerify(readCookie(req, verifyCookieName(slug)));
-  const ok = !!claim && claim.slug === slug && claim.email === email && Date.now() < claim.exp && codeMatches(claim.code, String(code));
-  if (!ok) return fail(401, "invalid or expired code");
+  if (!codeMatches(claim!.code, String(code))) return fail(401, "invalid or expired code");
   if (!evaluateAccess(link, { email, now: new Date().toISOString() }).allowed) return fail(403, "denied");
 
   await resetVerifyAttempt(getStore(), link.id, email);

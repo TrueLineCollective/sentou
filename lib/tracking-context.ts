@@ -10,6 +10,7 @@ export function trackingContext(
   if (!link.track) return { track: false };
   const viewer = claim && claim.linkId === link.id ? claim.email : "anon";
   const version = currentVersion(link);
-  const token = signTrackToken({ linkId: link.id, version, viewer, eventId: nanoid() });
+  // 24h covers a long-open tab still firing its close beacon, while bounding indefinite replay.
+  const token = signTrackToken({ linkId: link.id, version, viewer, eventId: nanoid(), exp: Date.now() + 24 * 3600_000 });
   return { track: true, token };
 }
