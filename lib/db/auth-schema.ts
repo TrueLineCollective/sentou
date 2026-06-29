@@ -102,3 +102,25 @@ export const invitation = sqliteTable("invitation", {
     .notNull()
     .references(() => user.id, { onDelete: "cascade" }),
 });
+
+// ---------------------------------------------------------------------------
+// API key table (custom; better-auth 1.6.x does not ship an apiKey plugin)
+// ---------------------------------------------------------------------------
+// Stores per-user long-lived tokens for MCP / automation use. The raw key is
+// never stored; only a SHA-256 hex digest (keyHash) is persisted. The first
+// 8 characters of the raw key (prefix) are kept for display/identification
+// without exposing the secret.
+
+export const apiKey = sqliteTable("api_key", {
+  id: text("id").primaryKey(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  name: text("name"),
+  keyHash: text("key_hash").notNull().unique(),
+  prefix: text("prefix").notNull(),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+  lastUsedAt: integer("last_used_at", { mode: "timestamp_ms" }),
+  expiresAt: integer("expires_at", { mode: "timestamp_ms" }),
+  enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
+});
