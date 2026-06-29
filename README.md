@@ -81,12 +81,12 @@ Sentou ships an MCP server, so you can publish without leaving a Claude session.
 claude mcp add sentou -- npx tsx "$(pwd)/mcp/server.ts"
 ```
 
-Claude gets two tools, `publish_artifact(html)` and `republish(id, html)`. If your instance is not on localhost, or you have set an owner token, pass both through the MCP server's environment, otherwise a hardened instance answers the publish call with a bare `401`:
+Claude gets two tools, `publish_artifact(html)` and `republish(id, html)`. If your instance is not on localhost, or you need to authenticate, pass both through the MCP server's environment, otherwise a hardened instance answers the publish call with a bare `401`. Generate a key from the dashboard or with `POST /api/keys` (the key value is returned once):
 
 ```bash
 claude mcp add sentou \
   --env SENTOU_URL=https://sentou.yourdomain.com \
-  --env SENTOU_OWNER_TOKEN=your-owner-token \
+  --env SENTOU_API_KEY=your-api-key \
   -- npx tsx "$(pwd)/mcp/server.ts"
 ```
 
