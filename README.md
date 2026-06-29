@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/banner.png" alt="Sentou — from me, to you" width="820" />
+  <img src="assets/banner.png" alt="Sentou: from me, to you" width="820" />
 </p>
 
 [![CI](https://github.com/TrueLineCollective/sentou/actions/workflows/ci.yml/badge.svg)](https://github.com/TrueLineCollective/sentou/actions/workflows/ci.yml)
@@ -25,7 +25,8 @@ This is early. The core works and is covered by tests, but a good part of the ro
 - Publish an artifact or raw HTML to a link, over the HTTP API or from inside Claude through the MCP server.
 - Edit in Claude and republish to the same link. The URL stays put and everyone who already has it keeps access. The link follows your latest version instead of freezing a copy.
 - Control who gets in: require an email, restrict to a company domain, set an expiry, or revoke a link when you are done.
-- Every artifact runs sandboxed. Its JavaScript executes in an isolated origin behind a strict CSP, so a published page cannot reach the cookies, session, or data on your domain. That holds even when someone opens the raw artifact URL directly, not only inside the viewer.
+- See who opened a link, when, and how long they stayed, if you turn it on. Tracking is off by default and opt-in per link (`track: true` at publish). When it is on, the viewer tells the recipient the link records their visit, and you read the totals back from `/api/stats`.
+- Every artifact runs sandboxed. It loads in an isolated, opaque origin (an `allow-scripts` iframe with no same-origin access, backed by a `sandbox` directive on the bytes themselves), so its JavaScript stays interactive but cannot reach the cookies, session, or data on your domain. That holds even when someone opens the raw artifact URL directly, not only inside the viewer.
 
 How hard the email gate locks depends on whether you wire an email sender. Set `SENTOU_RESEND_KEY` and `SENTOU_EMAIL_FROM` and a verifying gated link emails a one-time code to the address someone types and only grants access once they enter it back. The email is then verified, and the domain allowlist riding on it becomes a real lock. With no sender configured the gate stays record-only: it logs the email and enforces expiry and revocation but does not confirm the address, so a typed email is a record, not a lock. In that mode the unguessable link, expiry, and revoke are the real controls, and they hold no matter what email someone enters.
 
@@ -33,15 +34,27 @@ How hard the email gate locks depends on whether you wire an email sender. Set `
 
 A Sentou artifact is arbitrary HTML and JavaScript that other people load in their own browsers. That is a real attack surface, and it is the part that took the most care to get right. The artifact is served with `Content-Security-Policy: sandbox allow-scripts` and rendered inside an `allow-scripts` iframe with no `allow-same-origin`. The scripts still run, so the artifact stays interactive, but the browser hands them an opaque origin with no path back to the parent page or its data. The access check sits at the route that serves the bytes, not only in the page that frames them, so editing the URL does not get past the gate.
 
+What the sandbox does not do is stop the artifact from talking to the outside world. Like any web page, its own JavaScript can make network requests. The opaque origin protects your site and your other links from the artifact, not the artifact's own traffic, so treat a published artifact like code you are choosing to run: only publish ones you trust.
+
+## Privacy and data
+
+Sentou stores as little as it can, on infrastructure you control. Here is exactly what lands on disk:
+
+- **The artifact** and each version you republish.
+- **For a gated link**, the email a viewer enters. With `verifyEmail` on, that address is verified before it is stored.
+- **For a tracked link**, an open event per visit (timestamp and dwell time), attributed to the gate email or to `anon` when there is no verified viewer.
+
+It all lives in one JSON file at `SENTOU_DB`, in plaintext. There is no telemetry and nothing is sent anywhere off your server. Protect that file the way you would any file of personal data: restricted permissions, and disk encryption on an exposed host. Set `SENTOU_RETENTION_DAYS` to prune viewer and event data older than a window, and use `/api/forget` to erase a link's data, or one viewer's, on request.
+
 ## Quickstart (self-host)
 
-Requires Node 20 or newer and Git.
+Requires Node 20.9 or newer and Git.
 
 ```bash
 git clone https://github.com/TrueLineCollective/sentou.git
 cd sentou
 npm install
-echo "SENTOU_SECRET=$(openssl rand -hex 32)" > .env.local   # signs access cookies; there's an insecure dev default if you skip it
+echo "SENTOU_SECRET=$(openssl rand -hex 32)" > .env.local   # signs access cookies; skip it locally and a random per-process key is used (dev sessions reset on restart)
 npm run dev
 ```
 
@@ -68,7 +81,14 @@ Sentou ships an MCP server, so you can publish without leaving a Claude session.
 claude mcp add sentou -- npx tsx mcp/server.ts
 ```
 
-Claude gets two tools, `publish_artifact(html)` and `republish(id, html)`. If your instance is not on localhost, point the server at it with `SENTOU_URL`.
+Claude gets two tools, `publish_artifact(html)` and `republish(id, html)`. If your instance is not on localhost, or you have set an owner token, pass both through the MCP server's environment, otherwise a hardened instance answers the publish call with a bare `401`:
+
+```bash
+claude mcp add sentou \
+  --env SENTOU_URL=https://sentou.yourdomain.com \
+  --env SENTOU_OWNER_TOKEN=your-owner-token \
+  -- npx tsx mcp/server.ts
+```
 
 ## Deploying
 
@@ -102,11 +122,36 @@ SENTOU_SECRET=... SENTOU_BASE_URL=https://... SENTOU_OWNER_TOKEN=... npm run sta
 
 Optional: `SENTOU_RESEND_KEY` + `SENTOU_EMAIL_FROM` make `verifyEmail` links a real boundary, and `SENTOU_RETENTION_DAYS` prunes stored viewer and tracking data older than N days.
 
+## API
+
+Every endpoint takes and returns JSON. The write endpoints (everything except `/api/access*` and `/api/track`) require `Authorization: Bearer $SENTOU_OWNER_TOKEN` once you set that token, which you must on any exposed instance.
+
+```bash
+# Publish, with the full gate. Every gate field is optional; omit them for a public link.
+curl -X POST $URL/api/publish -H "authorization: Bearer $TOKEN" -H 'content-type: application/json' -d '{
+  "html": "<h1>Q3 board deck</h1>",
+  "requireEmail": true,
+  "verifyEmail": true,
+  "allowedDomains": ["acme.com"],
+  "expiresAt": "2030-01-01T00:00:00.000Z",
+  "track": true
+}'
+# -> { "id", "slug", "url", "version" }
+
+curl -X POST $URL/api/republish -H "authorization: Bearer $TOKEN" -d '{"id":"...","html":"<h1>v2</h1>"}'
+curl -X POST $URL/api/revoke    -H "authorization: Bearer $TOKEN" -d '{"id":"..."}'
+curl     "$URL/api/stats?id=..." -H "authorization: Bearer $TOKEN"     # -> { totalOpens, viewers[] }
+curl -X POST $URL/api/forget   -H "authorization: Bearer $TOKEN" -d '{"id":"..."}'            # erase all viewer data for a link
+curl -X POST $URL/api/forget   -H "authorization: Bearer $TOKEN" -d '{"id":"...","email":"a@acme.com"}'  # erase one viewer
+```
+
+`/api/access` (submit an email to a gated link), `/api/access/verify` (submit the emailed code), and `/api/track` (the viewer's open and close beacons) are unauthenticated by design, since recipients are not the owner. They are rate limited.
+
 ## What's next
 
-Shipped so far: the publish and republish loop, the sandboxed viewer, the MCP server, and the gating layer (email, domain allowlist, expiry, revoke).
+Shipped so far: the publish and republish loop, the sandboxed viewer, the MCP server, the gating layer (email, domain allowlist, expiry, revoke, email verification), and per-recipient tracking.
 
-Next, roughly in order: per-recipient tracking, so you can see who opened a link, how long they stayed, and where they dropped off. Then a hosted version for anyone who would rather not run a server. Then the enterprise pieces: SSO, audit logs, and data residency. Tracking comes first because it is what makes a sent link worth sending. Hosting follows because it funds the rest.
+Next, roughly in order: a hosted version for anyone who would rather not run a server, then the enterprise pieces (SSO, audit logs, data residency). Hosting comes first because it is what funds the rest.
 
 ## Why it's open source
 
