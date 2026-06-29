@@ -1,0 +1,26 @@
+# Single-instance deploy. The file store is process-local, so run exactly one replica with a
+# persistent volume. Set the secrets below before `docker compose up -d`.
+services:
+  sentou:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      # Required. Generate with: openssl rand -hex 32
+      SENTOU_SECRET: ${SENTOU_SECRET:?set SENTOU_SECRET, e.g. openssl rand -hex 32}
+      # The public URL Sentou builds links from. Set this to your real domain.
+      SENTOU_BASE_URL: ${SENTOU_BASE_URL:?set SENTOU_BASE_URL to your public URL}
+      # Required for an internet-exposed instance: gates the owner + stats endpoints.
+      SENTOU_OWNER_TOKEN: ${SENTOU_OWNER_TOKEN:?set SENTOU_OWNER_TOKEN for an exposed deploy}
+      # Optional email sender. Set both to make verifyEmail links a real boundary.
+      SENTOU_RESEND_KEY: ${SENTOU_RESEND_KEY:-}
+      SENTOU_EMAIL_FROM: ${SENTOU_EMAIL_FROM:-}
+      # Optional retention window; prunes stored viewers/events older than N days.
+      SENTOU_RETENTION_DAYS: ${SENTOU_RETENTION_DAYS:-}
+      SENTOU_DB: /data/db.json
+    volumes:
+      - sentou-data:/data
+    restart: unless-stopped
+
+volumes:
+  sentou-data:

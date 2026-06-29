@@ -1,0 +1,16 @@
+node_modules
+.next
+.git
+.github
+.sentou
+.env*
+!.env.example
+docs
+coverage
+*.tsbuildinfo
+.DS_Store
+README.md
+SECURITY.md
+LICENSING.md
+CONTRIBUTING.md
+assets
