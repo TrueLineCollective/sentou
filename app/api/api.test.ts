@@ -89,4 +89,15 @@ describe("api routes", () => {
     }));
     expect(res.status).toBe(400);
   });
+
+  it("stores the track flag from publish params", async () => {
+    const { POST: publish } = await import("@/app/api/publish/route");
+    const { getLinkBySlug } = await import("@/lib/links");
+    const { getStore } = await import("@/lib/server-store");
+    const res = await publish(new Request("http://t/api/publish", {
+      method: "POST", body: JSON.stringify({ html: "<h1>x</h1>", track: true }),
+    }));
+    const created = await res.json();
+    expect((await getLinkBySlug(getStore(), created.slug))!.track).toBe(true);
+  });
 });
