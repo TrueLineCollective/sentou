@@ -1,21 +1,27 @@
 import type { Actor } from "@/lib/auth-session";
 
-// An operator who set a real public base URL has declared this instance
-// internet-facing, even if NODE_ENV isn't "production" (a plain `next dev`
-// exposed through a tunnel, say). Treat that as exposed so owner + stats
-// endpoints can't sit open and leak viewer emails on a reachable host.
-// Both SENTOU_BASE_URL and BETTER_AUTH_URL are checked so a deploy that only
-// sets BETTER_AUTH_URL (common for auth-first setups) also gets the
-// fail-closed treatment.
-export function exposedDeploy(): boolean {
-  const base = process.env.SENTOU_BASE_URL ?? process.env.BETTER_AUTH_URL;
-  if (!base) return false;
+// Returns true when the given URL string resolves to a public (non-loopback) host.
+function isPublicHost(url: string): boolean {
   try {
-    const h = new URL(base).hostname;
+    const h = new URL(url).hostname;
     return h !== "localhost" && h !== "127.0.0.1" && h !== "::1" && h !== "0.0.0.0";
   } catch {
     return false;
   }
+}
+
+// An operator who set a real public base URL has declared this instance
+// internet-facing, even if NODE_ENV isn't "production" (a plain `next dev`
+// exposed through a tunnel, say). Treat that as exposed so owner + stats
+// endpoints can't sit open and leak viewer emails on a reachable host.
+// BOTH SENTOU_BASE_URL and BETTER_AUTH_URL are checked independently: a
+// localhost SENTOU_BASE_URL must not mask a public BETTER_AUTH_URL (common
+// in auth-first setups where only BETTER_AUTH_URL is set, or vice versa).
+export function exposedDeploy(): boolean {
+  const urls = [process.env.SENTOU_BASE_URL, process.env.BETTER_AUTH_URL].filter(
+    (u): u is string => typeof u === "string" && u.length > 0,
+  );
+  return urls.some(isPublicHost);
 }
 
 // Set the cookie Secure flag whenever the instance is reachable over a network,

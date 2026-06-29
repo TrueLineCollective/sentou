@@ -1,7 +1,7 @@
 import { revokeLink } from "@/lib/links";
 import { getStore } from "@/lib/server-store";
 import { requireOwner } from "@/lib/owner";
-import type { Actor } from "@/lib/auth-session";
+import { isAdmin, type Actor } from "@/lib/auth-session";
 
 export async function POST(req: Request) {
   let actor: Actor | null;
@@ -20,8 +20,9 @@ export async function POST(req: Request) {
   if (!link) return Response.json({ error: "link not found" }, { status: 404 });
 
   const ownerId = link.ownerUserId ?? null;
-  if (actor && ownerId) {
-    if (actor.userId !== ownerId && actor.role !== "owner" && actor.role !== "admin") {
+  if (actor) {
+    const authorized = (ownerId !== null && actor.userId === ownerId) || isAdmin(actor);
+    if (!authorized) {
       return Response.json({ error: "forbidden" }, { status: 403 });
     }
   }
