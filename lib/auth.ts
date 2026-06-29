@@ -28,6 +28,7 @@ export function makeAuth(db: BetterSQLite3Database<typeof schema> = getDb()) {
   return betterAuth({
     baseURL: base,
     trustedOrigins: [base],
+    secret: process.env.BETTER_AUTH_SECRET ?? process.env.SENTOU_SECRET,
     database: drizzleAdapter(db, { provider: "sqlite", schema }),
     emailAndPassword: { enabled: true },
     advanced: { useSecureCookies: secureCookies() },
