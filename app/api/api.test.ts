@@ -100,4 +100,29 @@ describe("api routes", () => {
     const created = await res.json();
     expect((await getLinkBySlug(getStore(), created.slug))!.track).toBe(true);
   });
+
+  it("preserves the track flag and recorded events across a republish", async () => {
+    const { POST: publish } = await import("@/app/api/publish/route");
+    const { POST: republish } = await import("@/app/api/republish/route");
+    const { recordOpen, recordClose, getLinkBySlug } = await import("@/lib/links");
+    const { getStore } = await import("@/lib/server-store");
+
+    const pub = await publish(new Request("http://t/api/publish", {
+      method: "POST", body: JSON.stringify({ html: "<h1>v1</h1>", track: true }),
+    }));
+    const created = await pub.json();
+    await recordOpen(getStore(), { eventId: "e1", linkId: created.id, viewer: "a@x.com", version: 1, openedAt: new Date().toISOString(), dwellMs: 0 });
+    await recordClose(getStore(), created.id, "e1", 3000);
+
+    const rep = await republish(new Request("http://t/api/republish", {
+      method: "POST", body: JSON.stringify({ id: created.id, html: "<h1>v2</h1>" }),
+    }));
+    expect(rep.status).toBe(200);
+
+    const link = await getLinkBySlug(getStore(), created.slug);
+    expect(link!.track).toBe(true);
+    expect(link!.events).toHaveLength(1);
+    expect(link!.events[0].dwellMs).toBe(3000);
+    expect(link!.versions).toHaveLength(2);
+  });
 });

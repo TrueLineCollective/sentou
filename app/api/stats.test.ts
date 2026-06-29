@@ -21,6 +21,15 @@ describe("/api/stats", () => {
     expect(body.totalOpens).toBe(1);
     expect(body.viewers[0]).toMatchObject({ viewer: "a@x.com", opens: 1, totalDwellMs: 7000 });
   });
+  it("returns 200 with an empty aggregate for a tracked link with no events", async () => {
+    const link = await createLink(getStore(), "<h1>x</h1>", undefined, true);
+    const { GET } = await import("@/app/api/stats/route");
+    const res = await GET(new Request("http://t/api/stats?id=" + link.id));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.totalOpens).toBe(0);
+    expect(body.viewers).toEqual([]);
+  });
   it("404s an unknown id and 400s a missing id", async () => {
     const { GET } = await import("@/app/api/stats/route");
     expect((await GET(new Request("http://t/api/stats?id=nope"))).status).toBe(404);
