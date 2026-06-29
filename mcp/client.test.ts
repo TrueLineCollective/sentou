@@ -4,7 +4,10 @@ import { publishArtifact, republishArtifact } from "@/mcp/client";
 // shared non-2xx error branch so a swallowed API error fails CI here, not in a
 // confusing MCP tool-call failure.
 
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  vi.restoreAllMocks();
+  delete process.env.SENTOU_OWNER_TOKEN;
+});
 
 describe("mcp http client", () => {
   it("publishArtifact posts html and returns the url", async () => {
@@ -36,5 +39,29 @@ describe("mcp http client", () => {
   it("throws on a non-2xx response instead of returning undefined", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => new Response("nope", { status: 500 })));
     await expect(publishArtifact("<p>x</p>")).rejects.toThrow(/publish failed: 500/);
+  });
+
+  it("sends the owner bearer when SENTOU_OWNER_TOKEN is set", async () => {
+    process.env.SENTOU_OWNER_TOKEN = "owner-secret";
+    const fetchMock = vi.fn(async () =>
+      new Response(JSON.stringify({ id: "a", slug: "s", url: "http://x/v/s", version: 1 })),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    await publishArtifact("<h1>x</h1>");
+    const init = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    const headers = init[1].headers as Record<string, string>;
+    expect(headers.authorization).toBe("Bearer owner-secret");
+  });
+
+  it("omits the authorization header when SENTOU_OWNER_TOKEN is unset", async () => {
+    delete process.env.SENTOU_OWNER_TOKEN;
+    const fetchMock = vi.fn(async () =>
+      new Response(JSON.stringify({ id: "a", slug: "s", url: "http://x/v/s", version: 1 })),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    await publishArtifact("<h1>x</h1>");
+    const init = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    const headers = init[1].headers as Record<string, string>;
+    expect(headers).not.toHaveProperty("authorization");
   });
 });
