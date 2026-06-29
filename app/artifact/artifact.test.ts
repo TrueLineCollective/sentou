@@ -19,6 +19,10 @@ describe("artifact route", () => {
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toContain("text/html");
     expect(res.headers.get("content-security-policy")).toContain("frame-ancestors 'self'");
+    // top-level-load bypass defense: the CSP must re-impose the sandbox even when the
+    // artifact is opened directly at /artifact/:slug, outside the viewer iframe.
+    expect(res.headers.get("content-security-policy")).toContain("sandbox allow-scripts");
+    expect(res.headers.get("content-security-policy")).not.toContain("allow-same-origin");
     expect(await res.text()).toBe("<h1>hello</h1>");
   });
 
