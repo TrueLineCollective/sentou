@@ -2,9 +2,13 @@ import { describe, it, expect } from "vitest";
 import { signAccessToken, verifyAccessToken } from "@/lib/token";
 
 describe("access token", () => {
-  it("round-trips a valid token", () => {
+  it("round-trips a valid token, defaulting verified to false", () => {
     const t = signAccessToken({ linkId: "L1", email: "a@x.com" });
-    expect(verifyAccessToken(t)).toEqual({ linkId: "L1", email: "a@x.com" });
+    expect(verifyAccessToken(t)).toEqual({ linkId: "L1", email: "a@x.com", verified: false });
+  });
+  it("carries the verified flag when the email was proven", () => {
+    const t = signAccessToken({ linkId: "L1", email: "a@x.com", verified: true });
+    expect(verifyAccessToken(t)).toEqual({ linkId: "L1", email: "a@x.com", verified: true });
   });
   it("rejects a tampered payload (signature mismatch)", () => {
     const t = signAccessToken({ linkId: "L1", email: "a@x.com" });
@@ -27,7 +31,7 @@ describe("access token", () => {
     const decoded = Buffer.from(body, "base64url").toString("utf8");
     expect(decoded).not.toContain("secret-link-id");
     expect(decoded).not.toContain("linkId");
-    expect(verifyAccessToken(t)).toEqual({ linkId: "secret-link-id", email: "a@x.com" });
+    expect(verifyAccessToken(t)).toEqual({ linkId: "secret-link-id", email: "a@x.com", verified: false });
   });
   it("rejects a token signed under a different secret (signature binds to the key)", () => {
     process.env.SENTOU_SECRET = "key-A";

@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync, existsSync, renameSync } from "node:fs";
 import { dirname } from "node:path";
 
 export type Version = { version: number; html: string; createdAt: string };
@@ -48,14 +48,53 @@ export function createMemoryStore(): LinkStore {
   };
 }
 
+// Fill defaults for fields added after a record was first written, so a store file from an
+// older Sentou (pre-tracking, pre-verify) deserializes into a complete Link instead of
+// crashing read sites that assume events/viewers/etc. exist. One chokepoint covers every read.
+function normalizeLink(raw: Record<string, unknown>): Link {
+  const r = raw as Partial<Link>;
+  return {
+    id: String(r.id),
+    slug: String(r.slug),
+    versions: r.versions ?? [],
+    createdAt: String(r.createdAt),
+    gate: r.gate ?? { requireEmail: false, allowedDomains: null, expiresAt: null, revoked: false },
+    viewers: r.viewers ?? [],
+    track: r.track ?? false,
+    verifyEmail: r.verifyEmail ?? false,
+    events: r.events ?? [],
+    verifyAttempts: r.verifyAttempts ?? {},
+  };
+}
+
 export function createFileStore(filePath: string): LinkStore {
   const load = (): Record<string, Link> => {
     if (!existsSync(filePath)) return {};
-    try { return JSON.parse(readFileSync(filePath, "utf8")); } catch { return {}; }
+    const text = readFileSync(filePath, "utf8");
+    let parsed: Record<string, Record<string, unknown>>;
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      // Do NOT swallow into {}: that lets the next write overwrite a corrupt-but-recoverable
+      // file with an empty store and silently lose every link, including revokes. Fail loud and
+      // leave the bytes on disk so an operator can inspect or restore them.
+      throw new Error(
+        `sentou: store file ${filePath} is not valid JSON. Refusing to read it so a write cannot ` +
+          `overwrite and erase your links. Back up and inspect the file, then remove or fix it.`,
+      );
+    }
+    const out: Record<string, Link> = {};
+    for (const [k, v] of Object.entries(parsed)) out[k] = normalizeLink(v);
+    return out;
   };
   const save = (data: Record<string, Link>) => {
     mkdirSync(dirname(filePath), { recursive: true });
-    writeFileSync(filePath, JSON.stringify(data, null, 2));
+    // Write to a temp file then rename: rename is atomic on the same filesystem, so a reader
+    // (or a crash mid-write) sees either the whole old file or the whole new one, never a
+    // truncated half that would fail to parse and trip the corrupt-file guard above.
+    const tmp = `${filePath}.tmp-${process.pid}`;
+    writeFileSync(tmp, JSON.stringify(data, null, 2));
+    renameSync(tmp, filePath);
   };
   return {
     async put(link) { const d = load(); d[link.id] = link; save(d); },

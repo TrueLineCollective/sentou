@@ -9,13 +9,18 @@ describe("trackingContext", () => {
     const link = await createLink(createMemoryStore(), "<h1>x</h1>");
     expect(trackingContext(link, null)).toEqual({ track: false });
   });
-  it("returns a signed token bound to the link and viewer when on", async () => {
+  it("attributes the open to a VERIFIED viewer's email when on", async () => {
     const link = await createLink(createMemoryStore(), "<h1>x</h1>", undefined, true);
-    const ctx = trackingContext(link, { linkId: link.id, email: "a@x.com" });
+    const ctx = trackingContext(link, { linkId: link.id, email: "a@x.com", verified: true });
     expect(ctx.track).toBe(true);
     const claim = verifyTrackToken((ctx as { token: string }).token)!;
     expect(claim.linkId).toBe(link.id);
     expect(claim.viewer).toBe("a@x.com");
+  });
+  it("attributes to anon for an UNVERIFIED viewer (record-only gate), never storing the unverified email", async () => {
+    const link = await createLink(createMemoryStore(), "<h1>x</h1>", undefined, true);
+    const ctx = trackingContext(link, { linkId: link.id, email: "a@x.com", verified: false }) as { track: true; token: string };
+    expect(verifyTrackToken(ctx.token)!.viewer).toBe("anon");
   });
   it("attributes to anon when there is no matching claim", async () => {
     const link = await createLink(createMemoryStore(), "<h1>x</h1>", undefined, true);
