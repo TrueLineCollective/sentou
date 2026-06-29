@@ -1,4 +1,4 @@
-import { getLinkBySlug, recordViewer } from "@/lib/links";
+import { getLinkBySlug, recordViewer, resetVerifyAttempt } from "@/lib/links";
 import { getStore, linkUrl } from "@/lib/server-store";
 import { evaluateAccess } from "@/lib/access";
 import { signAccessToken } from "@/lib/token";
@@ -46,6 +46,7 @@ export async function POST(req: Request) {
   if (!decision.allowed) return fail(403, decision.reason);
 
   if (link.verifyEmail) {
+    await resetVerifyAttempt(store, link.id, email); // a fresh code starts a fresh attempt budget
     const code = newCode();
     const token = sealVerify({ slug, email, code, exp: Date.now() + 600_000 });
     await getSender().sendCode(email, code);

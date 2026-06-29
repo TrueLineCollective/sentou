@@ -27,6 +27,7 @@ export type Link = {
   track: boolean;
   verifyEmail: boolean;
   events: ViewEvent[];
+  verifyAttempts: Record<string, number>;
 };
 
 export interface LinkStore {

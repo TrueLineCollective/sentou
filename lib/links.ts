@@ -46,6 +46,7 @@ export function createLink(
       track,
       verifyEmail,
       events: [],
+      verifyAttempts: {},
     };
     await store.put(link);
     return link;
@@ -99,6 +100,32 @@ export function revokeLink(store: LinkStore, id: string): Promise<Link> {
     link.gate.revoked = true;
     await store.put(link);
     return link;
+  });
+}
+
+// Brute-force cap on the email verification code. The 6-digit code lives encrypted in a
+// cookie, so an attacker can only guess it; without a cap they could try all 10^6 codes
+// within the TTL and impersonate an address they don't control. Count attempts per
+// (link, email); the caller locks past the cap. Reset on a fresh code or a success.
+export function bumpVerifyAttempt(store: LinkStore, id: string, email: string): Promise<number> {
+  return serializeWrite(async () => {
+    const link = await store.get(id);
+    if (!link) return Infinity;
+    if (!link.verifyAttempts) link.verifyAttempts = {};
+    const n = (link.verifyAttempts[email] ?? 0) + 1;
+    link.verifyAttempts[email] = n;
+    await store.put(link);
+    return n;
+  });
+}
+
+export function resetVerifyAttempt(store: LinkStore, id: string, email: string): Promise<void> {
+  return serializeWrite(async () => {
+    const link = await store.get(id);
+    if (!link) return;
+    if (!link.verifyAttempts) link.verifyAttempts = {};
+    delete link.verifyAttempts[email];
+    await store.put(link);
   });
 }
 
