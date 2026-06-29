@@ -49,8 +49,15 @@ export async function POST(req: Request) {
     const code = newCode();
     const token = sealVerify({ slug, email, code, exp: Date.now() + 600_000 });
     await getSender().sendCode(email, code);
+    const verifyCookie = `${verifyCookieName(slug)}=${token}; HttpOnly; Path=/; SameSite=Lax; Max-Age=600${process.env.NODE_ENV === "production" ? "; Secure" : ""}`;
+    if (isForm) {
+      return new Response(null, {
+        status: 303,
+        headers: { location: `/v/${slug}?step=code&email=${encodeURIComponent(email)}`, "set-cookie": verifyCookie },
+      });
+    }
     const res = Response.json({ status: "code_sent" });
-    res.headers.set("set-cookie", `${verifyCookieName(slug)}=${token}; HttpOnly; Path=/; SameSite=Lax; Max-Age=600${process.env.NODE_ENV === "production" ? "; Secure" : ""}`);
+    res.headers.set("set-cookie", verifyCookie);
     return res;
   }
 
