@@ -1,6 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Emit .next/standalone with a minimal server.js so the Docker image can run without the full
+  // node_modules tree. The runner stage copies public + .next/static alongside it (see Dockerfile).
+  output: "standalone",
   async headers() {
     // Clickjacking defense for the app shell + viewer. The /artifact byte-serving
     // route sets its own CSP (including `sandbox allow-scripts` and `frame-ancestors

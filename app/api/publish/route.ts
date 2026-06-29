@@ -1,8 +1,12 @@
 import { createLink, OPEN_GATE } from "@/lib/links";
 import { getStore, linkUrl } from "@/lib/server-store";
 import { requireOwner } from "@/lib/owner";
+import { rateLimit, clientIp } from "@/lib/rate-limit";
+import { emailConfigured } from "@/lib/email";
 
 export async function POST(req: Request) {
+  const rl = rateLimit(`publish:${clientIp(req)}`, 60, 60_000);
+  if (!rl.ok) return Response.json({ error: "rate limited" }, { status: 429, headers: { "retry-after": String(rl.retryAfterSec) } });
   if (!requireOwner(req)) return Response.json({ error: "unauthorized" }, { status: 401 });
   const body = await req.json().catch(() => ({}));
   const html = typeof body.html === "string" ? body.html : "";
@@ -35,6 +39,16 @@ export async function POST(req: Request) {
   };
   const track = body.track === true;
   const verifyEmail = body.verifyEmail === true;
+  // A verifyEmail link with no sender configured can never deliver a code: refuse it in
+  // production rather than minting a link whose recipients hit a dead end (and whose codes would
+  // otherwise be console-logged). Local dev keeps the console-sender fallback for testing, with
+  // an on-screen note in the viewer so it isn't a silent dead-end there.
+  if (verifyEmail && !emailConfigured() && process.env.NODE_ENV === "production") {
+    return Response.json(
+      { error: "verifyEmail requires an email sender; set SENTOU_RESEND_KEY + SENTOU_EMAIL_FROM" },
+      { status: 400 },
+    );
+  }
   const link = await createLink(getStore(), html, gate, track, verifyEmail);
   return Response.json({ id: link.id, slug: link.slug, url: linkUrl(link.slug), version: 1 });
 }
