@@ -22,3 +22,11 @@ jobs:
       - run: npm run lint
       - run: npm test
       - run: npm run build
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Verify the self-host image actually builds (the headline "runs on your own
+      # infrastructure" path), so a broken Dockerfile fails CI instead of a user's deploy.
+      - run: docker build -t sentou:ci .
