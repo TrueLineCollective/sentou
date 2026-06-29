@@ -37,4 +37,16 @@ describe("evaluateAccess", () => {
     const l = await link({ requireEmail: false, allowedDomains: ["acme.com"] });
     expect(evaluateAccess(l, { now: NOW }).reason).toBe("email_required");
   });
+  it("fails closed on an unparseable expiresAt (treats it as expired)", async () => {
+    const l = await link({ expiresAt: "not-a-date" });
+    expect(evaluateAccess(l, { now: NOW }).reason).toBe("expired");
+  });
+  it("blocks a smuggled second @ that would resolve to a non-allowed domain", async () => {
+    const l = await link({ requireEmail: true, allowedDomains: ["acme.com"] });
+    expect(evaluateAccess(l, { email: "a@acme.com@evil.com", now: NOW }).reason).toBe("domain_blocked");
+  });
+  it("blocks an address with no @ against an allowlist", async () => {
+    const l = await link({ requireEmail: true, allowedDomains: ["acme.com"] });
+    expect(evaluateAccess(l, { email: "noatsign", now: NOW }).reason).toBe("domain_blocked");
+  });
 });

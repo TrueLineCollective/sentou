@@ -1,3 +1,6 @@
+import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
+import { dirname } from "node:path";
+
 export type Version = { version: number; html: string; createdAt: string };
 export type Gate = {
   requireEmail: boolean;
@@ -42,9 +45,6 @@ export function createMemoryStore(): LinkStore {
     },
   };
 }
-
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
-import { dirname } from "node:path";
 
 export function createFileStore(filePath: string): LinkStore {
   const load = (): Record<string, Link> => {
