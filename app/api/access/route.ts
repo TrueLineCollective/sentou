@@ -36,13 +36,14 @@ export async function POST(req: Request) {
 
   if (!slug || !email) return fail(400, "slug and email are required");
 
-  const link = await getLinkBySlug(getStore(), slug);
+  const store = getStore();
+  const link = await getLinkBySlug(store, slug);
   if (!link) return fail(404, "not found");
 
   const decision = evaluateAccess(link, { email, now: new Date().toISOString() });
   if (!decision.allowed) return fail(403, decision.reason);
 
-  await recordViewer(getStore(), link.id, email);
+  await recordViewer(store, link.id, email);
   const token = signAccessToken({ linkId: link.id, email });
   const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
   const cookie = `${cookieName(slug)}=${encodeURIComponent(token)}; HttpOnly; Path=/; SameSite=Lax${secure}`;

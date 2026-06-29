@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { mkdtempSync } from "node:fs";
+import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { createFileStore } from "@/lib/store";
@@ -30,5 +30,13 @@ describe("file store", () => {
     const reloaded = await b.getBySlug(link.slug);
     expect(reloaded!.gate).toEqual({ requireEmail: true, allowedDomains: ["acme.com"], expiresAt: "2030-01-01T00:00:00.000Z", revoked: false });
     expect(reloaded!.viewers.map((v) => v.email)).toEqual(["a@acme.com"]);
+  });
+
+  it("returns null rather than throwing when the db file is corrupt", async () => {
+    const file = path.join(mkdtempSync(path.join(tmpdir(), "sentou-")), "db.json");
+    writeFileSync(file, "not json");
+    const store = createFileStore(file);
+    expect(await store.get("any-id")).toBeNull();
+    expect(await store.getBySlug("any-slug")).toBeNull();
   });
 });
