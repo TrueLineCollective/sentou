@@ -1,0 +1,24 @@
+import { describe, it, expect } from "vitest";
+import { signAccessToken, verifyAccessToken } from "@/lib/token";
+
+describe("access token", () => {
+  it("round-trips a valid token", () => {
+    const t = signAccessToken({ linkId: "L1", email: "a@x.com" });
+    expect(verifyAccessToken(t)).toEqual({ linkId: "L1", email: "a@x.com" });
+  });
+  it("rejects a tampered payload (signature mismatch)", () => {
+    const t = signAccessToken({ linkId: "L1", email: "a@x.com" });
+    const [body, sig] = t.split(".");
+    const forged = Buffer.from(JSON.stringify({ linkId: "L1", email: "attacker@x.com" })).toString("base64url");
+    expect(verifyAccessToken(forged + "." + sig)).toBeNull();
+  });
+  it("rejects malformed / empty tokens", () => {
+    expect(verifyAccessToken(null)).toBeNull();
+    expect(verifyAccessToken("")).toBeNull();
+    expect(verifyAccessToken("nodot")).toBeNull();
+  });
+  it("a token still carries its own linkId for the caller to scope-check", () => {
+    const t = signAccessToken({ linkId: "A", email: "a@x.com" });
+    expect(verifyAccessToken(t)!.linkId).toBe("A"); // caller must compare to the link being served
+  });
+});
