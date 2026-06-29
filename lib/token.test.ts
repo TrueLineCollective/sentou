@@ -21,4 +21,19 @@ describe("access token", () => {
     const t = signAccessToken({ linkId: "A", email: "a@x.com" });
     expect(verifyAccessToken(t)!.linkId).toBe("A"); // caller must compare to the link being served
   });
+  it("does NOT leak the payload to a client (encrypted body, no plaintext linkId)", () => {
+    const t = signAccessToken({ linkId: "secret-link-id", email: "a@x.com" });
+    const body = t.split(".")[0];
+    const decoded = Buffer.from(body, "base64url").toString("utf8");
+    expect(decoded).not.toContain("secret-link-id");
+    expect(decoded).not.toContain("linkId");
+    expect(verifyAccessToken(t)).toEqual({ linkId: "secret-link-id", email: "a@x.com" });
+  });
+  it("rejects a token signed under a different secret (signature binds to the key)", () => {
+    process.env.SENTOU_SECRET = "key-A";
+    const t = signAccessToken({ linkId: "L", email: "a@x.com" });
+    process.env.SENTOU_SECRET = "key-B";
+    expect(verifyAccessToken(t)).toBeNull();
+    delete process.env.SENTOU_SECRET;
+  });
 });

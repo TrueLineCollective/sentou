@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { getLinkBySlug } from "@/lib/links";
 import { getStore } from "@/lib/server-store";
 import { verifyAccessToken } from "@/lib/token";
+import { cookieName } from "@/lib/cookies";
 import { gateState } from "@/lib/gate-view";
 import { trackingContext } from "@/lib/tracking-context";
 
@@ -12,7 +13,7 @@ export default async function ViewerPage({ params }: { params: Promise<{ slug: s
   if (!link) notFound();
 
   const cookieStore = await cookies();
-  const claim = verifyAccessToken(cookieStore.get(`sentou_${slug}`)?.value);
+  const claim = verifyAccessToken(cookieStore.get(cookieName(slug))?.value);
   const state = gateState(link, claim);
 
   if (state === "denied") {

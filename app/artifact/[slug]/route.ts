@@ -2,6 +2,7 @@ import { getLinkBySlug, currentHtml } from "@/lib/links";
 import { getStore } from "@/lib/server-store";
 import { evaluateAccess } from "@/lib/access";
 import { verifyAccessToken } from "@/lib/token";
+import { cookieName } from "@/lib/cookies";
 
 function readCookie(req: Request, name: string): string | null {
   const raw = req.headers.get("cookie") ?? "";
@@ -21,7 +22,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ slug: st
   const link = await getLinkBySlug(getStore(), slug);
   if (!link) return new Response("Not found", { status: 404 });
 
-  const claim = verifyAccessToken(readCookie(req, `sentou_${slug}`));
+  const claim = verifyAccessToken(readCookie(req, cookieName(slug)));
   const email = claim && claim.linkId === link.id ? claim.email : undefined;
   const decision = evaluateAccess(link, { email, now: new Date().toISOString() });
   if (!decision.allowed) {
