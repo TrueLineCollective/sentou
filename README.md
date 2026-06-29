@@ -2,6 +2,7 @@
 
 *From me, to you.*
 
+[![CI](https://github.com/TrueLineCollective/sentou/actions/workflows/ci.yml/badge.svg)](https://github.com/TrueLineCollective/sentou/actions/workflows/ci.yml)
 [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](./LICENSE)
 
 <p align="center">
@@ -26,7 +27,7 @@ This is early. The core works and is covered by tests, but a good part of the ro
 - Control who gets in: require an email, restrict to a company domain, set an expiry, or revoke a link when you are done.
 - Every artifact runs sandboxed. Its JavaScript executes in an isolated origin behind a strict CSP, so a published page cannot reach the cookies, session, or data on your domain. That holds even when someone opens the raw artifact URL directly, not only inside the viewer.
 
-One caveat while this is young: the email gate records who is asking and enforces expiry and revocation, but it does not verify the address yet. Until verification ships (it is on the roadmap), the unguessable link is the real secret. A typed email is a record, not a lock. Revoke and expiry are real locks, and they hold no matter what email someone enters.
+One caveat while this is young: the email gate records who is asking and enforces expiry and revocation, but it does not verify the address yet. The domain allowlist rides on that same unverified email, so it is not a hard lock either until verification ships. Until then (it is on the roadmap), the unguessable link is the real secret. A typed email is a record, not a lock. Revoke, expiry, and the unguessable link are the real controls today, and they hold no matter what email someone enters.
 
 ## How the sandbox works
 
@@ -50,7 +51,7 @@ Publish something:
 curl -s -X POST localhost:3000/api/publish \
   -H 'content-type: application/json' \
   -d '{"html":"<h1>hello</h1>"}'
-# -> { "slug": "...", "url": "http://localhost:3000/v/...", "version": 1 }
+# -> { "id": "...", "slug": "...", "url": "http://localhost:3000/v/...", "version": 1 }
 ```
 
 Open the `url` it returns to see your artifact in its sandbox. To update it, POST `{ "id": "...", "html": "..." }` to `/api/republish` and the same link picks up the change.
@@ -59,7 +60,7 @@ To gate a link, pass `requireEmail`, `allowedDomains`, or `expiresAt` at publish
 
 ### Publishing from Claude
 
-Sentou ships an MCP server, so you can publish without leaving a Claude session:
+Sentou ships an MCP server, so you can publish without leaving a Claude session. Run this from the repo root, with `npm run dev` already running so the server has an instance to publish to:
 
 ```bash
 claude mcp add sentou -- npx tsx mcp/server.ts
