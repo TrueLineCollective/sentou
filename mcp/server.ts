@@ -3,7 +3,8 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod";
 import { publishArtifact, republishArtifact } from "./client.js";
 
-const server = new McpServer({ name: "sentou", version: "0.0.1" });
+// Keep this version in sync with package.json.
+const server = new McpServer({ name: "sentou", version: "0.1.0" });
 
 server.registerTool(
   "publish_artifact",
