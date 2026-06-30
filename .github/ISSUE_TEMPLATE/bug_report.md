@@ -29,4 +29,4 @@ What you expected to happen instead.
 
 ## Additional context
 
-Logs, screenshots, or anything else that helps. Do not paste secrets (`SENTOU_SECRET`, `SENTOU_OWNER_TOKEN`).
+Logs, screenshots, or anything else that helps. Do not paste secrets (`SENTOU_SECRET`, API keys).
