@@ -18,6 +18,42 @@ import * as schema from "@/lib/db/schema";
 import { getSender, emailConfigured } from "@/lib/email";
 import { secureCookies } from "@/lib/owner";
 
+// A better-sqlite3 UNIQUE/PRIMARYKEY collision, surfaced as a SqliteError with a code.
+function isUniqueViolation(err: unknown): boolean {
+  const code = (err as { code?: string } | null)?.code;
+  return typeof code === "string" && code.startsWith("SQLITE_CONSTRAINT");
+}
+
+// Atomically claim the single workspace organization and its owner membership for the first
+// account. Idempotent and race-safe: organization.slug is UNIQUE, so if two first signups
+// race past the invite gate, only one transaction commits; the loser's INSERT throws a
+// uniqueness violation, the whole transaction rolls back, and NO second owner is ever
+// created. (A racing loser ends up as a registered account with no membership and therefore
+// no owner/admin/member powers, rather than a second owner.)
+export function bootstrapWorkspace(
+  db: BetterSQLite3Database<typeof schema>,
+  userId: string,
+): void {
+  const existing = db.select({ id: schema.organization.id }).from(schema.organization).limit(1).all();
+  if (existing.length > 0) return; // workspace already claimed
+
+  const now = new Date();
+  const orgId = randomUUID();
+  try {
+    db.transaction((tx) => {
+      tx.insert(schema.organization)
+        .values({ id: orgId, name: "Workspace", slug: "workspace", createdAt: now })
+        .run();
+      tx.insert(schema.member)
+        .values({ id: randomUUID(), organizationId: orgId, userId, role: "owner", createdAt: now })
+        .run();
+    });
+  } catch (err) {
+    if (!isUniqueViolation(err)) throw err;
+    // A concurrent signup already bootstrapped the workspace; leave it owned by the winner.
+  }
+}
+
 // Factory so tests can create isolated auth instances against a temp DB.
 export function makeAuth(db: BetterSQLite3Database<typeof schema> = getDb()) {
   const base =
@@ -63,29 +99,11 @@ export function makeAuth(db: BetterSQLite3Database<typeof schema> = getDb()) {
             }
           },
 
-          // First-owner bootstrap: create the workspace org + owner membership.
+          // First-owner bootstrap: atomically claim the workspace org + owner membership.
+          // Race-safe (see bootstrapWorkspace): two concurrent first signups cannot both
+          // become owner.
           async after(user) {
-            const existingOrgs = await db
-              .select({ id: schema.organization.id })
-              .from(schema.organization)
-              .limit(1);
-            if (existingOrgs.length > 0) return; // workspace already bootstrapped
-
-            const orgId = randomUUID();
-            const now = new Date();
-            await db.insert(schema.organization).values({
-              id: orgId,
-              name: "Workspace",
-              slug: "workspace",
-              createdAt: now,
-            });
-            await db.insert(schema.member).values({
-              id: randomUUID(),
-              organizationId: orgId,
-              userId: user.id,
-              role: "owner",
-              createdAt: now,
-            });
+            bootstrapWorkspace(db, user.id);
           },
         },
       },

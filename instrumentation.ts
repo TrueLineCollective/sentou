@@ -34,12 +34,21 @@ export async function register() {
   try {
     const db = getDb();
     const { user } = await import("@/lib/db/schema");
+    const { exposedDeploy } = await import("@/lib/owner");
     const firstUser = db.select({ id: user.id }).from(user).limit(1).get();
     if (!firstUser) {
-      warn(
-        "No owner account yet; sign up the first owner, then create an API key " +
-          "for automation or MCP use via POST /api/keys.",
-      );
+      if (exposedDeploy()) {
+        // Security: until the owner is claimed, the first visitor to /setup becomes owner.
+        warn(
+          "SECURITY: this instance is internet-exposed with NO owner account yet. The first " +
+            "visitor to /setup will claim ownership. Complete /setup now, before sharing the URL.",
+        );
+      } else {
+        warn(
+          "No owner account yet; sign up the first owner, then create an API key " +
+            "for automation or MCP use via POST /api/keys.",
+        );
+      }
     }
   } catch {
     // DB or table not ready at boot; skip the account check.
