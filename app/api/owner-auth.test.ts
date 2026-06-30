@@ -3,6 +3,7 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { randomUUID, createHash } from "node:crypto";
+import { eq } from "drizzle-orm";
 import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 import { getDb } from "@/lib/db/client";
 import * as schema from "@/lib/db/schema";
@@ -688,5 +689,86 @@ describe("exposedDeploy superset check (fix 4)", () => {
     expect(exposedDeploy()).toBe(false);
     delete process.env.SENTOU_BASE_URL;
     delete process.env.BETTER_AUTH_URL;
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Fix 5: API key revoke ownership enforcement
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("API key revoke ownership enforcement (fix 5)", () => {
+  it("owner can revoke their own key and the row becomes disabled", async () => {
+    const { db, userA, keyA } = setupTwoActors();
+
+    // Find Alice's key row ID
+    const keyRow = db
+      .select({ id: schema.apiKey.id })
+      .from(schema.apiKey)
+      .where(eq(schema.apiKey.userId, userA))
+      .get();
+    expect(keyRow).not.toBeNull();
+
+    const { POST: revokePost } = await import("@/app/api/keys/revoke/route");
+    const res = await revokePost(new Request("http://t/api/keys/revoke", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${keyA}`,
+      },
+      body: JSON.stringify({ id: keyRow!.id }),
+    }));
+    expect(res.status).toBe(200);
+    const body = await res.json() as { ok: boolean };
+    expect(body.ok).toBe(true);
+
+    // Verify the key is actually disabled in the DB — not just a status code claim.
+    const after = db
+      .select({ enabled: schema.apiKey.enabled })
+      .from(schema.apiKey)
+      .where(eq(schema.apiKey.id, keyRow!.id))
+      .get();
+    expect(after?.enabled).toBe(false);
+  });
+
+  it("member cannot revoke owner's key — returns 404 and row stays enabled", async () => {
+    const { db, userA, keyB } = setupTwoActors();
+
+    // Find Alice's (owner's) key row ID
+    const aliceKeyRow = db
+      .select({ id: schema.apiKey.id })
+      .from(schema.apiKey)
+      .where(eq(schema.apiKey.userId, userA))
+      .get();
+    expect(aliceKeyRow).not.toBeNull();
+
+    const { POST: revokePost } = await import("@/app/api/keys/revoke/route");
+    const res = await revokePost(new Request("http://t/api/keys/revoke", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${keyB}`,
+      },
+      body: JSON.stringify({ id: aliceKeyRow!.id }),
+    }));
+    // 404 — we don't confirm existence of other users' keys
+    expect(res.status).toBe(404);
+
+    // Verify Alice's key is STILL enabled — the row must be unchanged.
+    const still = db
+      .select({ enabled: schema.apiKey.enabled })
+      .from(schema.apiKey)
+      .where(eq(schema.apiKey.id, aliceKeyRow!.id))
+      .get();
+    expect(still?.enabled).toBe(true);
+  });
+
+  it("unauthenticated request is rejected with 401", async () => {
+    const { POST: revokePost } = await import("@/app/api/keys/revoke/route");
+    const res = await revokePost(new Request("http://t/api/keys/revoke", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ id: "any-id" }),
+    }));
+    expect(res.status).toBe(401);
   });
 });
