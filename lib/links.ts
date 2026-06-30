@@ -78,22 +78,32 @@ function pruneRetention(link: Link): void {
   link.verifyAttempts = {};
 }
 
-export function recordOpen(store: LinkStore, e: ViewEvent): Promise<void> {
+// Returns true if this is the viewer's FIRST open of the link (no prior events for this viewer),
+// false for a duplicate eventId or a viewer that has opened before. Computed atomically inside
+// the serialized write so the result is always consistent with the written state.
+// Caveat: pruneRetention runs before the check, so a viewer whose events aged out past
+// SENTOU_RETENTION_DAYS can re-trigger a first-open notification.
+export function recordOpen(store: LinkStore, e: ViewEvent): Promise<boolean> {
   return serializeWrite(async () => {
     const link = await store.get(e.linkId);
-    if (!link) return;
+    if (!link) return false;
     pruneRetention(link);
     const i = link.events.findIndex((x) => x.eventId === e.eventId);
+    let firstOpen = false;
     if (i >= 0) {
       // A close beacon fires from both pagehide and visibilitychange, and beacons have
       // no delivery ordering. A duplicate/late open with the same eventId must not reset
       // an already-recorded dwell, so preserve a non-zero dwell on upsert.
       link.events[i] = { ...e, dwellMs: link.events[i].dwellMs > 0 ? link.events[i].dwellMs : e.dwellMs };
+      // Duplicate eventId: not a first open.
     } else {
+      // New eventId: first open only when this viewer has no prior events on this link.
+      firstOpen = !link.events.some((x) => x.viewer === e.viewer);
       link.events.push(e);
     }
     if (link.events.length > 10000) link.events = link.events.slice(-10000);
     await store.put(link);
+    return firstOpen;
   });
 }
 
