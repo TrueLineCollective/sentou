@@ -168,7 +168,7 @@ describe("maybeNotifyOpen — email channel", () => {
 describe("maybeNotifyOpen — webhook channel", () => {
   it("POSTs the webhook payload when webhookUrl is set", async () => {
     const { id: userId } = seedUser();
-    setPrefs(userId, false, "https://hooks.example.com/sentou");
+    setPrefs(userId, false, "https://203.0.113.10/sentou");
     const link = await createLink(getStore(), "<h1>x</h1>", undefined, true, false, userId);
 
     const fetchMock = vi.fn(async () => new Response("{}", { status: 200 }));
@@ -184,7 +184,7 @@ describe("maybeNotifyOpen — webhook channel", () => {
     const callArgs = fetchMock.mock.calls[0] as unknown[];
     const url = callArgs[0] as string;
     const init = callArgs[1] as RequestInit;
-    expect(url).toBe("https://hooks.example.com/sentou");
+    expect(url).toBe("https://203.0.113.10/sentou");
     expect(init.method).toBe("POST");
     const payload = JSON.parse(init.body as string);
     expect(payload.event).toBe("link.opened");
@@ -197,7 +197,7 @@ describe("maybeNotifyOpen — webhook channel", () => {
 
   it("resolves (does not throw) when webhook returns non-2xx", async () => {
     const { id: userId } = seedUser();
-    setPrefs(userId, false, "https://hooks.example.com/fail");
+    setPrefs(userId, false, "https://203.0.113.10/fail");
     const link = await createLink(getStore(), "<h1>x</h1>", undefined, true, false, userId);
 
     vi.stubGlobal("fetch", vi.fn(async () => new Response("", { status: 503 })));
@@ -212,7 +212,7 @@ describe("maybeNotifyOpen — webhook channel", () => {
 
   it("resolves when the webhook fetch throws (network error)", async () => {
     const { id: userId } = seedUser();
-    setPrefs(userId, false, "https://hooks.example.com/throw");
+    setPrefs(userId, false, "https://203.0.113.10/throw");
     const link = await createLink(getStore(), "<h1>x</h1>", undefined, true, false, userId);
 
     vi.stubGlobal("fetch", vi.fn(() => Promise.reject(new Error("ECONNREFUSED"))));
