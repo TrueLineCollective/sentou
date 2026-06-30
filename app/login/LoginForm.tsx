@@ -43,6 +43,7 @@ function RouteLineHero() {
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       aria-hidden="true"
+      className="h-auto md:h-[80px]"
     >
       <defs>
         <linearGradient
@@ -146,11 +147,11 @@ export function LoginForm() {
   }
 
   return (
-    <div className="transit-canvas relative min-h-screen flex flex-col bg-transit-canvas text-transit-periwinkle overflow-hidden">
+    <div className="transit-canvas relative min-h-dvh flex flex-col bg-transit-canvas text-transit-periwinkle overflow-hidden">
       <TransitGrid />
 
       {/* ── Top nav ──────────────────────────────────────────────────────── */}
-      <nav className="relative z-10 flex items-center justify-between px-12 pt-8 pb-4">
+      <nav className="relative z-10 flex items-center justify-between px-4 md:px-12 pt-6 md:pt-8 pb-4">
         <Wordmark size="md" />
         <span className="text-[10px] font-mono tracking-[0.28em] uppercase text-transit-muted">
           Return
@@ -159,23 +160,12 @@ export function LoginForm() {
 
       {/* ── Main composition ─────────────────────────────────────────────── */}
       {/*
-       * Same 62% / 38% grid as the setup screen. The destination dot in the
-       * route line sits at exactly 62% — directly above the first form field.
-       * The line is pre-drawn: you know this route.
+       * 62% / 38% grid at md+, single column on mobile. The destination dot
+       * sits at 62% — directly above the first form field on desktop.
        */}
-      <div
-        className="relative z-10 flex-1"
-        style={{
-          display: "grid",
-          gridTemplateColumns: "62% 38%",
-          gridTemplateRows: "auto auto 1fr",
-          paddingLeft: "3rem",
-          paddingRight: "3rem",
-          paddingBottom: "3rem",
-        }}
-      >
+      <div className="relative z-10 flex-1 grid grid-cols-1 md:grid-cols-[62%_38%] md:grid-rows-[auto_auto_1fr] px-4 md:px-12 pb-4 md:pb-12">
         {/* ── Row 1, Col 1: Heading + editorial copy ────────────────────── */}
-        <div className="pt-8 pb-6 pr-16">
+        <div className="pt-6 md:pt-8 pb-4 md:pb-6 md:pr-16">
           {/* Line identifier */}
           <div className="flex items-center gap-3 mb-5">
             <span className="text-[9px] font-mono tracking-[0.35em] uppercase text-transit-muted">
@@ -199,15 +189,15 @@ export function LoginForm() {
         </div>
 
         {/* ── Row 1, Col 2: Empty — space above form ────────────────────── */}
-        <div />
+        <div className="hidden md:block" />
 
         {/* ── Row 2, Cols 1+2: Route line (full-width hero) ─────────────── */}
-        <div style={{ gridColumn: "1 / -1" }} className="py-1">
+        <div className="col-span-full py-1">
           <RouteLineHero />
         </div>
 
         {/* ── Row 3, Col 1: Below-origin context ────────────────────────── */}
-        <div className="pt-6 pr-16">
+        <div className="pt-4 md:pt-6 md:pr-16 order-last md:order-none">
           <p className="text-xs text-transit-muted">
             Access is invite-only.{" "}
             <span className="text-transit-muted/60">Contact your workspace admin.</span>
