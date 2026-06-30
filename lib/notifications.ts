@@ -6,6 +6,7 @@ import { eq } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
 import * as schema from "@/lib/db/schema";
 import { getSender, emailConfigured } from "@/lib/email";
+import { assertSafeWebhookUrl } from "@/lib/ssrf";
 
 export interface OpenNotifyOpts {
   linkId: string;
@@ -76,13 +77,20 @@ export async function maybeNotifyOpen(opts: OpenNotifyOpts): Promise<void> {
       timestamp: new Date().toISOString(),
     });
 
+    // SSRF guard: resolve the host and refuse to POST to internal address space. The owner
+    // (or a member) controls this URL, so it must not be trusted to reach the host's internals.
     tasks.push(
-      fetch(webhookUrl, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: payload,
-      })
-        .then(async (res) => {
+      assertSafeWebhookUrl(webhookUrl)
+        .then(() =>
+          fetch(webhookUrl, {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: payload,
+            // Do not let a 30x bounce the request to an internal target after the host check.
+            redirect: "manual",
+          }),
+        )
+        .then((res) => {
           if (!res.ok) {
             console.warn(`[sentou] webhook ${webhookUrl} returned ${res.status}`);
           }
