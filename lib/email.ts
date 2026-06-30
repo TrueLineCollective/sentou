@@ -1,5 +1,6 @@
 export interface EmailSender {
   sendCode(to: string, code: string): Promise<void>;
+  sendInvite(to: string, acceptUrl: string): Promise<void>;
 }
 
 const consoleSender: EmailSender = {
@@ -16,6 +17,16 @@ const consoleSender: EmailSender = {
     }
     console.log(`[sentou] verification code for ${to}: ${code}`);
   },
+  async sendInvite(to, acceptUrl) {
+    if (process.env.NODE_ENV === "production") {
+      console.warn(
+        "[sentou] no email sender configured; cannot deliver invitation. " +
+          "Set SENTOU_RESEND_KEY + SENTOU_EMAIL_FROM.",
+      );
+      return;
+    }
+    console.log(`[sentou] invitation for ${to}: ${acceptUrl}`);
+  },
 };
 
 function resendSender(apiKey: string, from: string): EmailSender {
@@ -30,6 +41,19 @@ function resendSender(apiKey: string, from: string): EmailSender {
         }),
       });
       if (!res.ok) throw new Error(`email send failed: ${res.status}`);
+    },
+    async sendInvite(to, acceptUrl) {
+      const res = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: { authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
+        body: JSON.stringify({
+          from, to, subject: "You've been invited to Sentou",
+          html:
+            `<p>You have been invited to join Sentou. Your invitation expires in 48 hours.</p>` +
+            `<p><a href="${acceptUrl}">Accept invitation</a></p>`,
+        }),
+      });
+      if (!res.ok) throw new Error(`invitation email send failed: ${res.status}`);
     },
   };
 }

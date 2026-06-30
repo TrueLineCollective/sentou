@@ -22,10 +22,14 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "mcp": "tsx mcp/server.ts"
+    "mcp": "tsx mcp/server.ts",
+    "migrate:json": "tsx scripts/migrate-json-to-sqlite.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
+    "better-auth": "^1.6.22",
+    "better-sqlite3": "^12.11.1",
+    "drizzle-orm": "^0.45.2",
     "nanoid": "^5.1.16",
     "next": "16.2.9",
     "react": "19.2.4",
@@ -34,9 +38,11 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "drizzle-kit": "^0.31.10",
     "eslint": "^9",
     "eslint-config-next": "16.2.9",
     "tailwindcss": "^4",
