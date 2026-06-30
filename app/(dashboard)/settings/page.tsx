@@ -6,6 +6,7 @@ import { getDb } from "@/lib/db/client";
 import * as schema from "@/lib/db/schema";
 import { emailConfigured } from "@/lib/email";
 import { ApiKeysPanel, type ApiKeyItem } from "@/components/transit/ApiKeysPanel";
+import { NotificationPrefsPanel, type NotificationPrefs } from "@/components/transit/NotificationPrefsPanel";
 
 export const dynamic = "force-dynamic";
 
@@ -70,6 +71,19 @@ export default async function SettingsPage() {
           : null,
     enabled: k.enabled,
   }));
+
+  // Notification prefs for this user
+  const rawPrefs = db
+    .select()
+    .from(schema.notificationPrefs)
+    .where(eq(schema.notificationPrefs.userId, session.user.id))
+    .get();
+
+  const notifPrefs: NotificationPrefs = {
+    emailOnOpen: rawPrefs?.emailOnOpen ?? false,
+    webhookUrl: rawPrefs?.webhookUrl ?? null,
+    emailConfigured: emailConfigured(),
+  };
 
   // Config values — match the exact env resolution the engine uses
   const emailOk = emailConfigured();
@@ -166,6 +180,22 @@ export default async function SettingsPage() {
           </p>
         </div>
         <ApiKeysPanel initialKeys={apiKeys} />
+      </section>
+
+      {/* ── Notifications section ─────────────────────────────────────────── */}
+      <section aria-labelledby="notif-heading" className="mt-8">
+        <div className="px-8 pb-4 border-b border-transit-border">
+          <p
+            id="notif-heading"
+            className="text-[9px] font-mono tracking-[0.35em] uppercase text-transit-muted"
+          >
+            Notifications
+          </p>
+          <p className="text-[11px] text-transit-muted mt-1 font-mono">
+            Alerts fire once per viewer — only on a viewer&apos;s first open of each link.
+          </p>
+        </div>
+        <NotificationPrefsPanel initialPrefs={notifPrefs} />
       </section>
     </div>
   );
