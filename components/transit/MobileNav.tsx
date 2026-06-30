@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { Wordmark } from "./Wordmark";
 import { NavRail } from "./NavRail";
 import { SignOutButton } from "./SignOutButton";
@@ -74,10 +75,16 @@ export function MobileNav({ userName, userEmail }: MobileNavProps) {
         </button>
       </div>
 
-      {/* ── Overlay + drawer (conditionally rendered) ───────────────────── */}
-      {open && (
-        <>
-          {/* Backdrop */}
+      {/* ── Overlay + drawer ─────────────────────────────────────────────
+          Portaled to <body> so they escape the layout's `relative z-10`
+          mobile-nav wrapper. That wrapper is a sibling stacking context of
+          <main> at the same z-index; without the portal the drawer's z-50
+          stays trapped inside it and <main> (a later sibling) paints over
+          both the scrim and the panel, making them look see-through. */}
+      {open &&
+        createPortal(
+          <>
+            {/* Backdrop */}
           <div
             className="fixed inset-0 z-40 bg-black/40 backdrop-blur-[2px]"
             onClick={close}
@@ -143,8 +150,9 @@ export function MobileNav({ userName, userEmail }: MobileNavProps) {
               <SignOutButton />
             </div>
           </div>
-        </>
-      )}
+          </>,
+          document.body,
+        )}
     </>
   );
 }
