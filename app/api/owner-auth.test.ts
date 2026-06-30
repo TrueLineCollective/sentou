@@ -3,6 +3,7 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { randomUUID, createHash } from "node:crypto";
+import { eq } from "drizzle-orm";
 import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 import { getDb } from "@/lib/db/client";
 import * as schema from "@/lib/db/schema";
@@ -577,6 +578,104 @@ describe("API key creation endpoint (fix 2)", () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// M2: per-user active API key cap
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("per-user API key cap (M2)", () => {
+  it("rejects key creation when the user already holds MAX_ACTIVE_KEYS active keys", async () => {
+    const dbFile = process.env.SENTOU_DB!;
+    const db = getDb(dbFile);
+    migrate(db, { migrationsFolder: "lib/db/migrations" });
+
+    const { aliceCookie } = await setupWithSessions(db);
+
+    const { POST: keysPost, MAX_ACTIVE_KEYS } = await import("@/app/api/keys/route");
+
+    // Create keys up to the cap.
+    for (let i = 0; i < MAX_ACTIVE_KEYS; i++) {
+      const res = await keysPost(new Request("http://t/api/keys", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          cookie: `better-auth.session_token=${aliceCookie}`,
+        },
+        body: JSON.stringify({ name: `key-${i}` }),
+      }));
+      expect(res.status).toBe(200);
+    }
+
+    // The next creation attempt must be rejected.
+    const overLimitRes = await keysPost(new Request("http://t/api/keys", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        cookie: `better-auth.session_token=${aliceCookie}`,
+      },
+      body: JSON.stringify({ name: "over-limit" }),
+    }));
+    expect(overLimitRes.status).toBe(422);
+    const body = await overLimitRes.json() as { error: string };
+    expect(body.error).toMatch(/limit/i);
+  });
+
+  it("counts only enabled=true keys toward the cap (revoked keys do not count)", async () => {
+    const dbFile = process.env.SENTOU_DB!;
+    const db = getDb(dbFile);
+    migrate(db, { migrationsFolder: "lib/db/migrations" });
+
+    const { aliceCookie } = await setupWithSessions(db);
+
+    const { POST: keysPost, MAX_ACTIVE_KEYS } = await import("@/app/api/keys/route");
+    const { POST: revokePost } = await import("@/app/api/keys/revoke/route");
+
+    // Create MAX_ACTIVE_KEYS keys, then revoke the first one.
+    const firstKeyId: string[] = [];
+    for (let i = 0; i < MAX_ACTIVE_KEYS; i++) {
+      const res = await keysPost(new Request("http://t/api/keys", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          cookie: `better-auth.session_token=${aliceCookie}`,
+        },
+        body: JSON.stringify({ name: `key-${i}` }),
+      }));
+      expect(res.status).toBe(200);
+      if (i === 0) {
+        // Store the DB id of the first key for revocation.
+        const { key } = await res.json() as { key: string };
+        const keyHash = createHash("sha256").update(key).digest("hex");
+        const row = db.select({ id: schema.apiKey.id }).from(schema.apiKey)
+          .where(eq(schema.apiKey.keyHash, keyHash)).get();
+        if (row) firstKeyId.push(row.id);
+      }
+    }
+
+    // Revoke the first key (active count drops to MAX_ACTIVE_KEYS - 1).
+    expect(firstKeyId.length).toBe(1);
+    const revokeRes = await revokePost(new Request("http://t/api/keys/revoke", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        cookie: `better-auth.session_token=${aliceCookie}`,
+      },
+      body: JSON.stringify({ id: firstKeyId[0] }),
+    }));
+    expect(revokeRes.status).toBe(200);
+
+    // Now creating a new key must succeed (active count is below the cap).
+    const newRes = await keysPost(new Request("http://t/api/keys", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        cookie: `better-auth.session_token=${aliceCookie}`,
+      },
+      body: JSON.stringify({ name: "replacement-key" }),
+    }));
+    expect(newRes.status).toBe(200);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Fix 3: role is scoped to the workspace org
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -688,5 +787,86 @@ describe("exposedDeploy superset check (fix 4)", () => {
     expect(exposedDeploy()).toBe(false);
     delete process.env.SENTOU_BASE_URL;
     delete process.env.BETTER_AUTH_URL;
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Fix 5: API key revoke ownership enforcement
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("API key revoke ownership enforcement (fix 5)", () => {
+  it("owner can revoke their own key and the row becomes disabled", async () => {
+    const { db, userA, keyA } = setupTwoActors();
+
+    // Find Alice's key row ID
+    const keyRow = db
+      .select({ id: schema.apiKey.id })
+      .from(schema.apiKey)
+      .where(eq(schema.apiKey.userId, userA))
+      .get();
+    expect(keyRow).not.toBeNull();
+
+    const { POST: revokePost } = await import("@/app/api/keys/revoke/route");
+    const res = await revokePost(new Request("http://t/api/keys/revoke", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${keyA}`,
+      },
+      body: JSON.stringify({ id: keyRow!.id }),
+    }));
+    expect(res.status).toBe(200);
+    const body = await res.json() as { ok: boolean };
+    expect(body.ok).toBe(true);
+
+    // Verify the key is actually disabled in the DB — not just a status code claim.
+    const after = db
+      .select({ enabled: schema.apiKey.enabled })
+      .from(schema.apiKey)
+      .where(eq(schema.apiKey.id, keyRow!.id))
+      .get();
+    expect(after?.enabled).toBe(false);
+  });
+
+  it("member cannot revoke owner's key — returns 404 and row stays enabled", async () => {
+    const { db, userA, keyB } = setupTwoActors();
+
+    // Find Alice's (owner's) key row ID
+    const aliceKeyRow = db
+      .select({ id: schema.apiKey.id })
+      .from(schema.apiKey)
+      .where(eq(schema.apiKey.userId, userA))
+      .get();
+    expect(aliceKeyRow).not.toBeNull();
+
+    const { POST: revokePost } = await import("@/app/api/keys/revoke/route");
+    const res = await revokePost(new Request("http://t/api/keys/revoke", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${keyB}`,
+      },
+      body: JSON.stringify({ id: aliceKeyRow!.id }),
+    }));
+    // 404 — we don't confirm existence of other users' keys
+    expect(res.status).toBe(404);
+
+    // Verify Alice's key is STILL enabled — the row must be unchanged.
+    const still = db
+      .select({ enabled: schema.apiKey.enabled })
+      .from(schema.apiKey)
+      .where(eq(schema.apiKey.id, aliceKeyRow!.id))
+      .get();
+    expect(still?.enabled).toBe(true);
+  });
+
+  it("unauthenticated request is rejected with 401", async () => {
+    const { POST: revokePost } = await import("@/app/api/keys/revoke/route");
+    const res = await revokePost(new Request("http://t/api/keys/revoke", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ id: "any-id" }),
+    }));
+    expect(res.status).toBe(401);
   });
 });
