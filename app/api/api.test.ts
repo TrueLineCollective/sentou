@@ -112,6 +112,40 @@ describe("api routes", () => {
     expect((await getLinkBySlug(getStore(), created.slug))!.track).toBe(true);
   });
 
+  it("stores title from publish when provided, null without", async () => {
+    const { POST: publish } = await import("@/app/api/publish/route");
+    const { getDb } = await import("@/lib/db/client");
+    const { links } = await import("@/lib/db/schema");
+    const { eq } = await import("drizzle-orm");
+
+    // With title — read back directly from the DB (title is not in the Link type)
+    const res1 = await publish(new Request("http://t/api/publish", {
+      method: "POST",
+      body: JSON.stringify({ html: "<h1>titled</h1>", title: "My Title" }),
+    }));
+    expect(res1.status).toBe(200);
+    const created1 = await res1.json() as { slug: string };
+    const row1 = getDb()
+      .select({ title: links.title })
+      .from(links)
+      .where(eq(links.slug, created1.slug))
+      .get();
+    expect(row1?.title).toBe("My Title");
+
+    // Without title — title column should be null (store writes null on insert)
+    const res2 = await publish(new Request("http://t/api/publish", {
+      method: "POST",
+      body: JSON.stringify({ html: "<h1>no title</h1>" }),
+    }));
+    const created2 = await res2.json() as { slug: string };
+    const row2 = getDb()
+      .select({ title: links.title })
+      .from(links)
+      .where(eq(links.slug, created2.slug))
+      .get();
+    expect(row2?.title).toBeNull();
+  });
+
   it("preserves the track flag and recorded events across a republish", async () => {
     const { POST: publish } = await import("@/app/api/publish/route");
     const { POST: republish } = await import("@/app/api/republish/route");

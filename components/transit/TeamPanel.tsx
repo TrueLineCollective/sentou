@@ -85,7 +85,7 @@ function MemberRow({
 
   return (
     <article
-      className="border-b border-transit-border py-5 px-8 hover:bg-white/[0.012] transition-colors duration-100"
+      className="border-b border-transit-border py-5 px-4 md:px-8 hover:bg-white/[0.012] transition-colors duration-100"
       aria-label={`Station ${lineNum}: ${member.name}`}
     >
       {/* Line ID + role */}
@@ -199,7 +199,7 @@ function InvitationRow({
 
   return (
     <article
-      className="border-b border-transit-border py-5 px-8 hover:bg-white/[0.012] transition-colors duration-100"
+      className="border-b border-transit-border py-5 px-4 md:px-8 hover:bg-white/[0.012] transition-colors duration-100"
       aria-label={`Pending invitation ${lineNum} for ${invitation.email}`}
     >
       <div className="flex items-center justify-between mb-4">
@@ -255,7 +255,7 @@ function InvitationRow({
 
 function EmptyInvitations() {
   return (
-    <div className="px-8 py-10 flex flex-col items-center text-center">
+    <div className="px-4 md:px-8 py-10 flex flex-col items-center text-center">
       {/* Dashed route: the destination is not yet reached */}
       <svg
         width="100%"
@@ -328,7 +328,7 @@ function InviteForm({ organizationId, onSuccess }: InviteFormProps) {
   }
 
   return (
-    <section aria-labelledby="invite-heading" className="px-8 py-6 border-t border-transit-border">
+    <section aria-labelledby="invite-heading" className="px-4 md:px-8 py-6 border-t border-transit-border">
       <p
         id="invite-heading"
         className="text-[9px] font-mono tracking-[0.35em] uppercase text-transit-muted mb-5"
@@ -463,7 +463,7 @@ export function TeamPanel({
   return (
     <div className="flex flex-col min-h-dvh">
       {/* Sticky header */}
-      <header className="sticky top-0 z-20 bg-transit-canvas/95 backdrop-blur-sm border-b border-transit-border px-8 py-5">
+      <header className="sticky top-0 z-20 bg-transit-canvas/95 backdrop-blur-sm border-b border-transit-border px-4 md:px-8 py-5">
         <div className="flex items-center justify-between">
           <div>
             <p className="text-[9px] font-mono tracking-[0.35em] uppercase text-transit-muted mb-1">
@@ -493,7 +493,7 @@ export function TeamPanel({
       {actionError && (
         <div
           role="alert"
-          className="mx-8 mt-4 text-sm font-mono bg-red-400/10 border border-red-400/30 rounded-lg px-4 py-3 text-red-400"
+          className="mx-4 md:mx-8 mt-4 text-sm font-mono bg-red-400/10 border border-red-400/30 rounded-lg px-4 py-3 text-red-400"
         >
           {actionError}
           <button
@@ -508,7 +508,7 @@ export function TeamPanel({
 
       {/* Invite success banner */}
       {inviteSuccessUrl && (
-        <div className="mx-8 mt-4 bg-transit-mint/10 border border-transit-mint/30 rounded-lg px-4 py-3">
+        <div className="mx-4 md:mx-8 mt-4 bg-transit-mint/10 border border-transit-mint/30 rounded-lg px-4 py-3">
           <p className="text-[10px] font-mono tracking-[0.2em] uppercase text-transit-mint mb-1">
             Invitation sent
           </p>
@@ -532,7 +532,7 @@ export function TeamPanel({
 
       {/* Members section */}
       <section aria-label="Team members">
-        <div className="px-8 pt-6 pb-2">
+        <div className="px-4 md:px-8 pt-6 pb-2">
           <p className="text-[8px] font-mono tracking-[0.35em] uppercase text-transit-muted">
             Members
           </p>
@@ -559,7 +559,7 @@ export function TeamPanel({
 
       {/* Pending invitations section */}
       <section aria-label="Pending invitations" className="mt-2">
-        <div className="px-8 pt-4 pb-2">
+        <div className="px-4 md:px-8 pt-4 pb-2">
           <p className="text-[8px] font-mono tracking-[0.35em] uppercase text-transit-muted">
             Pending invitations
           </p>
@@ -591,7 +591,7 @@ export function TeamPanel({
 
       {/* Member-only view: read-only footer note */}
       {!actorIsAdmin && (
-        <div className="px-8 py-6 border-t border-transit-border mt-auto">
+        <div className="px-4 md:px-8 py-6 border-t border-transit-border mt-auto">
           <p className="text-[10px] font-mono tracking-[0.2em] uppercase text-transit-muted/50">
             Contact an admin to invite or remove members.
           </p>

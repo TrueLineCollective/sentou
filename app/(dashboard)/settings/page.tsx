@@ -96,7 +96,7 @@ export default async function SettingsPage() {
   return (
     <div className="min-h-dvh">
       {/* Sticky header */}
-      <header className="sticky top-0 z-20 bg-transit-canvas/95 backdrop-blur-sm border-b border-transit-border px-8 py-5">
+      <header className="sticky top-0 z-20 bg-transit-canvas/95 backdrop-blur-sm border-b border-transit-border px-4 md:px-8 py-5">
         <div className="flex items-center gap-2.5 mb-1">
           <span className="text-[9px] font-mono tracking-[0.35em] uppercase text-transit-muted">
             System
@@ -113,7 +113,7 @@ export default async function SettingsPage() {
 
       {/* ── Config Status section ─────────────────────────────────────────── */}
       <section aria-labelledby="status-heading">
-        <div className="px-8 pt-8 pb-3">
+        <div className="px-4 md:px-8 pt-8 pb-3">
           <p
             id="status-heading"
             className="text-[9px] font-mono tracking-[0.35em] uppercase text-transit-muted"
@@ -123,7 +123,7 @@ export default async function SettingsPage() {
         </div>
 
         {/* Email sender */}
-        <div className="border-b border-transit-border py-5 px-8 flex items-center justify-between hover:bg-white/[0.012] transition-colors duration-100">
+        <div className="border-b border-transit-border py-5 px-4 md:px-8 flex items-center justify-between hover:bg-white/[0.012] transition-colors duration-100">
           <div>
             <p className="text-sm font-medium text-transit-periwinkle">Email sender</p>
             <p className="text-[11px] text-transit-muted mt-0.5 font-mono">
@@ -137,7 +137,7 @@ export default async function SettingsPage() {
         </div>
 
         {/* Viewer retention */}
-        <div className="border-b border-transit-border py-5 px-8 flex items-center justify-between hover:bg-white/[0.012] transition-colors duration-100">
+        <div className="border-b border-transit-border py-5 px-4 md:px-8 flex items-center justify-between hover:bg-white/[0.012] transition-colors duration-100">
           <div>
             <p className="text-sm font-medium text-transit-periwinkle">Viewer retention</p>
             <p className="text-[11px] text-transit-muted mt-0.5 font-mono">
@@ -150,7 +150,7 @@ export default async function SettingsPage() {
         </div>
 
         {/* Base URL */}
-        <div className="border-b border-transit-border py-5 px-8 flex items-start justify-between hover:bg-white/[0.012] transition-colors duration-100 gap-8">
+        <div className="border-b border-transit-border py-5 px-4 md:px-8 flex items-start justify-between hover:bg-white/[0.012] transition-colors duration-100 gap-8">
           <div className="flex-shrink-0">
             <p className="text-sm font-medium text-transit-periwinkle">Base URL</p>
             <p className="text-[11px] text-transit-muted mt-0.5 font-mono">
@@ -171,7 +171,7 @@ export default async function SettingsPage() {
 
       {/* ── API Keys section ──────────────────────────────────────────────── */}
       <section aria-labelledby="keys-heading" className="mt-8">
-        <div className="px-8 pb-4 border-b border-transit-border">
+        <div className="px-4 md:px-8 pb-4 border-b border-transit-border">
           <p
             id="keys-heading"
             className="text-[9px] font-mono tracking-[0.35em] uppercase text-transit-muted"
@@ -184,7 +184,7 @@ export default async function SettingsPage() {
 
       {/* ── Notifications section ─────────────────────────────────────────── */}
       <section aria-labelledby="notif-heading" className="mt-8">
-        <div className="px-8 pb-4 border-b border-transit-border">
+        <div className="px-4 md:px-8 pb-4 border-b border-transit-border">
           <p
             id="notif-heading"
             className="text-[9px] font-mono tracking-[0.35em] uppercase text-transit-muted"

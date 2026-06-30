@@ -24,7 +24,7 @@ function relativeTime(dateStr: string): string {
 
 function EmptyCollections() {
   return (
-    <div className="flex flex-col items-center justify-center min-h-[55vh] px-8">
+    <div className="flex flex-col items-center justify-center min-h-[55vh] px-4 md:px-8">
       {/* Dashed empty line — signals bundling without filling it */}
       <div className="mb-8" aria-hidden="true">
         <svg width="280" height="72" viewBox="0 0 280 72" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -74,7 +74,7 @@ function CollectionCard({
 }) {
   return (
     <article
-      className="border-b border-transit-border py-5 px-8 hover:bg-white/[0.012] transition-colors duration-100"
+      className="border-b border-transit-border py-5 px-4 md:px-8 hover:bg-white/[0.012] transition-colors duration-100"
       aria-label={`Collection: ${title}`}
     >
       {/* Header row */}
@@ -162,7 +162,7 @@ export default async function CollectionsPage() {
   return (
     <div className="min-h-dvh">
       {/* Sticky header */}
-      <header className="sticky top-0 z-20 bg-transit-canvas/95 backdrop-blur-sm border-b border-transit-border px-8 py-5">
+      <header className="sticky top-0 z-20 bg-transit-canvas/95 backdrop-blur-sm border-b border-transit-border px-4 md:px-8 py-5">
         <div className="flex items-center gap-2.5 mb-1">
           <span className="text-[9px] font-mono tracking-[0.35em] uppercase text-transit-muted">
             Bundle Network
