@@ -1,7 +1,11 @@
+import { eq } from "drizzle-orm";
 import { recordOpen, recordClose } from "@/lib/links";
 import { getStore } from "@/lib/server-store";
 import { verifyTrackToken } from "@/lib/track-token";
 import { rateLimit, clientIp } from "@/lib/rate-limit";
+import { maybeNotifyOpen } from "@/lib/notifications";
+import { getDb } from "@/lib/db/client";
+import * as schema from "@/lib/db/schema";
 
 export async function POST(req: Request) {
   // Unauthenticated beacon route: rate-limit per IP and cap the body before parsing. These
@@ -24,10 +28,31 @@ export async function POST(req: Request) {
   if (!claim) return new Response(null, { status: 204 }); // ignore forged beacons silently
 
   if (body.type === "open") {
-    await recordOpen(getStore(), {
+    const openedAt = new Date().toISOString();
+    const firstOpen = await recordOpen(getStore(), {
       eventId: claim.eventId, linkId: claim.linkId, viewer: claim.viewer,
-      version: claim.version, openedAt: new Date().toISOString(), dwellMs: 0,
+      version: claim.version, openedAt, dwellMs: 0,
     });
+
+    // Fire notifications async and non-blocking. Failures are logged, never exposed.
+    if (firstOpen) {
+      const db = getDb();
+      const linkRow = db
+        .select({ ownerUserId: schema.links.ownerUserId, title: schema.links.title })
+        .from(schema.links)
+        .where(eq(schema.links.id, claim.linkId))
+        .get();
+
+      void maybeNotifyOpen({
+        linkId: claim.linkId,
+        linkTitle: linkRow?.title ?? null,
+        ownerUserId: linkRow?.ownerUserId ?? null,
+        viewer: claim.viewer,
+        openedAt,
+      }).catch(() => {
+        // Safety net: maybeNotifyOpen already catches internally, but never propagate.
+      });
+    }
   } else if (body.type === "close") {
     await recordClose(getStore(), claim.linkId, claim.eventId, Math.max(0, Number(body.dwellMs) || 0));
   }
