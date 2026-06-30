@@ -33,12 +33,14 @@ function serializeWrite<T>(fn: () => Promise<T>): Promise<T> {
 
 export function createLink(
   store: LinkStore, html: string, gate: Gate = OPEN_GATE, track = false, verifyEmail = false,
+  ownerUserId: string | null = null,
 ): Promise<Link> {
   return serializeWrite(async () => {
     const now = new Date().toISOString();
     const link: Link = {
       id: nanoid(),
       slug: nanoid(12),
+      ownerUserId,
       versions: [{ version: 1, html, createdAt: now }],
       createdAt: now,
       // verifyEmail is meaningless without an email gate: paired with requireEmail=false

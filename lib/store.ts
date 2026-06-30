@@ -20,6 +20,7 @@ export type ViewEvent = {
 export type Link = {
   id: string;
   slug: string;
+  ownerUserId?: string | null;
   versions: Version[];
   createdAt: string;
   gate: Gate;
@@ -56,6 +57,7 @@ function normalizeLink(raw: Record<string, unknown>): Link {
   return {
     id: String(r.id),
     slug: String(r.slug),
+    ownerUserId: r.ownerUserId ?? null,
     versions: r.versions ?? [],
     createdAt: String(r.createdAt),
     gate: r.gate ?? { requireEmail: false, allowedDomains: null, expiresAt: null, revoked: false },

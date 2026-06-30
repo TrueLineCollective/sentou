@@ -3,11 +3,19 @@ import { getStore, linkUrl } from "@/lib/server-store";
 import { requireOwner } from "@/lib/owner";
 import { rateLimit, clientIp } from "@/lib/rate-limit";
 import { emailConfigured } from "@/lib/email";
+import type { Actor } from "@/lib/auth-session";
 
 export async function POST(req: Request) {
   const rl = rateLimit(`publish:${clientIp(req)}`, 60, 60_000);
   if (!rl.ok) return Response.json({ error: "rate limited" }, { status: 429, headers: { "retry-after": String(rl.retryAfterSec) } });
-  if (!requireOwner(req)) return Response.json({ error: "unauthorized" }, { status: 401 });
+
+  let actor: Actor | null;
+  try {
+    actor = await requireOwner(req);
+  } catch {
+    return Response.json({ error: "unauthorized" }, { status: 401 });
+  }
+
   // Cap the body before parsing: even an authed caller shouldn't be able to POST gigabytes of
   // HTML, which the whole-file-rewrite store would then re-serialize on every later write.
   if (Number(req.headers.get("content-length") || 0) > 5_000_000) {
@@ -54,6 +62,7 @@ export async function POST(req: Request) {
       { status: 400 },
     );
   }
-  const link = await createLink(getStore(), html, gate, track, verifyEmail);
+  // Stamp the link with the owner's userId (null if dev-open with no auth).
+  const link = await createLink(getStore(), html, gate, track, verifyEmail, actor?.userId ?? null);
   return Response.json({ id: link.id, slug: link.slug, url: linkUrl(link.slug), version: 1 });
 }
