@@ -96,7 +96,7 @@ function RouteEntry({
 
   return (
     <article
-      className="border-b border-transit-border py-5 px-8 hover:bg-white/[0.012] transition-colors duration-100"
+      className="border-b border-transit-border py-5 px-4 md:px-8 hover:bg-white/[0.012] transition-colors duration-100"
       aria-label={`Route ${lineNum}: ${title}`}
     >
       {/* Line ID + status indicator */}
@@ -165,7 +165,7 @@ function RouteEntry({
 
 function EmptyRoutes() {
   return (
-    <div className="flex flex-col items-center justify-center min-h-[65vh] px-8">
+    <div className="flex flex-col items-center justify-center min-h-[65vh] px-4 md:px-8">
       {/* Dashed empty route line — signals the concept without filling it */}
       <div className="w-80 mb-8" aria-hidden="true">
         <svg
@@ -179,7 +179,7 @@ function EmptyRoutes() {
             x="4"
             y="12"
             fontSize="8"
-            fill="#565f89"
+            fill="#828bbf"
             fontFamily="monospace"
             letterSpacing="3"
             textAnchor="start"
@@ -190,7 +190,7 @@ function EmptyRoutes() {
             x="316"
             y="12"
             fontSize="8"
-            fill="#565f89"
+            fill="#828bbf"
             fontFamily="monospace"
             letterSpacing="3"
             textAnchor="end"
@@ -305,7 +305,7 @@ export default async function RoutesPage() {
   return (
     <div className="min-h-dvh">
       {/* Sticky header — always visible while scrolling */}
-      <header className="sticky top-0 z-20 bg-transit-canvas/95 backdrop-blur-sm border-b border-transit-border px-8 py-5 flex items-center justify-between">
+      <header className="sticky top-0 z-20 bg-transit-canvas/95 backdrop-blur-sm border-b border-transit-border px-4 md:px-8 py-5 flex items-center justify-between">
         <div>
           <div className="flex items-center gap-2.5 mb-1">
             <span className="text-[9px] font-mono tracking-[0.35em] uppercase text-transit-muted">

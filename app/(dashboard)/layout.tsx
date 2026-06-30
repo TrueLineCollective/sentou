@@ -6,6 +6,7 @@ import { user as userTable } from "@/lib/db/schema";
 import { Wordmark } from "@/components/transit/Wordmark";
 import { NavRail } from "@/components/transit/NavRail";
 import { SignOutButton } from "@/components/transit/SignOutButton";
+import { MobileNav } from "@/components/transit/MobileNav";
 
 export const dynamic = "force-dynamic";
 
@@ -44,11 +45,16 @@ export default async function DashboardLayout({
   const { user } = session;
 
   return (
-    <div className="transit-canvas flex min-h-dvh bg-transit-canvas text-transit-periwinkle">
+    <div className="transit-canvas flex flex-col md:flex-row min-h-dvh bg-transit-canvas text-transit-periwinkle">
       <TransitGrid />
 
-      {/* Left nav rail */}
-      <aside className="relative z-10 w-52 flex-shrink-0 flex flex-col border-r border-transit-border">
+      {/* Mobile top bar + drawer (hidden on md+) */}
+      <div className="relative z-10 md:hidden">
+        <MobileNav userName={user.name ?? ""} userEmail={user.email} />
+      </div>
+
+      {/* Left nav rail (hidden on mobile) */}
+      <aside className="hidden md:flex relative z-10 w-52 flex-shrink-0 flex-col border-r border-transit-border">
         {/* Wordmark */}
         <div className="px-5 pt-7 pb-5 border-b border-transit-border">
           <Wordmark size="md" />
@@ -82,7 +88,7 @@ export default async function DashboardLayout({
       </aside>
 
       {/* Main content area */}
-      <main className="relative z-10 flex-1 min-h-dvh overflow-auto">
+      <main className="relative z-10 flex-1 overflow-auto min-h-0">
         {children}
       </main>
     </div>

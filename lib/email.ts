@@ -84,7 +84,7 @@ function resendSender(apiKey: string, from: string): EmailSender {
           subject: `"${title}" was opened`,
           html:
             `<div style="font-family:sans-serif;color:#1a1b26;background:#f9f9fb;padding:32px">` +
-            `<p style="margin:0 0 8px;font-size:12px;letter-spacing:0.2em;text-transform:uppercase;color:#565f89;font-family:monospace">Sentou — open alert</p>` +
+            `<p style="margin:0 0 8px;font-size:12px;letter-spacing:0.2em;text-transform:uppercase;color:#565f89;font-family:monospace">Sentou open alert</p>` +
             `<h1 style="margin:0 0 24px;font-size:24px;font-weight:900;color:#1a1b26">"${title}"<span style="color:#2d8f3e">.</span></h1>` +
             `<p style="margin:0 0 8px;font-size:15px;color:#1a1b26">Your link was opened.</p>` +
             `<table style="border-collapse:collapse;width:100%;margin-top:16px">` +

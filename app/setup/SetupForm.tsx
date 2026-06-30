@@ -145,7 +145,7 @@ function RouteLineHero() {
         x="20"
         y="16"
         fontSize={9}
-        fill="#565f89"
+        fill="#828bbf"
         fontFamily="monospace"
         letterSpacing={2}
         textAnchor="middle"
@@ -156,7 +156,7 @@ function RouteLineHero() {
         x="746"
         y="16"
         fontSize={9}
-        fill="#565f89"
+        fill="#828bbf"
         fontFamily="monospace"
         letterSpacing={2}
         textAnchor="middle"

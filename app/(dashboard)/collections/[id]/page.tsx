@@ -56,7 +56,7 @@ export default async function CollectionDetailPage({
   return (
     <div className="min-h-dvh">
       {/* Sticky header */}
-      <header className="sticky top-0 z-20 bg-transit-canvas/95 backdrop-blur-sm border-b border-transit-border px-8 py-5">
+      <header className="sticky top-0 z-20 bg-transit-canvas/95 backdrop-blur-sm border-b border-transit-border px-4 md:px-8 py-5">
         <div className="flex items-center gap-2.5 mb-1">
           <Link
             href="/collections"
@@ -81,7 +81,7 @@ export default async function CollectionDetailPage({
         </p>
       </header>
 
-      <div className="px-8 py-6 space-y-8">
+      <div className="px-4 md:px-8 py-6 space-y-8">
         {/* ── Current stops ─────────────────────────────────────────────── */}
         <section aria-labelledby="stops-heading">
           <div className="flex items-center gap-2 mb-4">

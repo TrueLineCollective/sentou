@@ -23,7 +23,7 @@
   --transit-elevated: #252640;
   --transit-periwinkle: #c0caf5;
   --transit-mint: #7ee787;
-  --transit-muted: #565f89;
+  --transit-muted: #828bbf;
   --transit-border: #292e42;
 
   /* shadcn primitives wired to Transit */
@@ -62,7 +62,7 @@
   --color-transit-elevated: #252640;
   --color-transit-periwinkle: #c0caf5;
   --color-transit-mint: #7ee787;
-  --color-transit-muted: #565f89;
+  --color-transit-muted: #828bbf;
   --color-transit-border: #292e42;
 
   /* shadcn CSS var pass-through */
@@ -75,7 +75,7 @@
   --color-secondary: var(--secondary, #1f2035);
   --color-secondary-foreground: var(--secondary-foreground, #c0caf5);
   --color-muted: var(--muted, #1f2035);
-  --color-muted-foreground: var(--muted-foreground, #565f89);
+  --color-muted-foreground: var(--muted-foreground, #828bbf);
   --color-accent: var(--accent, #252640);
   --color-accent-foreground: var(--accent-foreground, #c0caf5);
   --color-destructive: var(--destructive, #f7768e);
