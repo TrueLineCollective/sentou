@@ -24,12 +24,12 @@ function relativeTime(dateStr: string): string {
 
 function EmptyCollections() {
   return (
-    <div className="flex flex-col items-center justify-center min-h-[55vh] px-8">
+    <div className="flex flex-col items-center justify-center min-h-[55vh] px-4 md:px-8">
       {/* Dashed empty line — signals bundling without filling it */}
       <div className="mb-8" aria-hidden="true">
         <svg width="280" height="72" viewBox="0 0 280 72" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <text x="4" y="12" fontSize="7" fill="#565f89" fontFamily="monospace" letterSpacing="3">ORIGIN</text>
-          <text x="276" y="12" fontSize="7" fill="#565f89" fontFamily="monospace" letterSpacing="3" textAnchor="end">COLLECTION</text>
+          <text x="4" y="12" fontSize="7" fill="#828bbf" fontFamily="monospace" letterSpacing="3">ORIGIN</text>
+          <text x="276" y="12" fontSize="7" fill="#828bbf" fontFamily="monospace" letterSpacing="3" textAnchor="end">COLLECTION</text>
           {/* Three source dots */}
           <circle cx="16" cy="38" r="5" fill="#1a1b26" stroke="#292e42" strokeWidth="1.5" strokeDasharray="2 2" />
           <circle cx="16" cy="52" r="5" fill="#1a1b26" stroke="#292e42" strokeWidth="1.5" strokeDasharray="2 2" />
@@ -74,7 +74,7 @@ function CollectionCard({
 }) {
   return (
     <article
-      className="border-b border-transit-border py-5 px-8 hover:bg-white/[0.012] transition-colors duration-100"
+      className="border-b border-transit-border py-5 px-4 md:px-8 hover:bg-white/[0.012] transition-colors duration-100"
       aria-label={`Collection: ${title}`}
     >
       {/* Header row */}
@@ -162,7 +162,7 @@ export default async function CollectionsPage() {
   return (
     <div className="min-h-dvh">
       {/* Sticky header */}
-      <header className="sticky top-0 z-20 bg-transit-canvas/95 backdrop-blur-sm border-b border-transit-border px-8 py-5">
+      <header className="sticky top-0 z-20 bg-transit-canvas/95 backdrop-blur-sm border-b border-transit-border px-4 md:px-8 py-5">
         <div className="flex items-center gap-2.5 mb-1">
           <span className="text-[9px] font-mono tracking-[0.35em] uppercase text-transit-muted">
             Bundle Network

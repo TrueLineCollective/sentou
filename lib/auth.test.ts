@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 import { getDb } from "@/lib/db/client";
-import { makeAuth } from "@/lib/auth";
+import { makeAuth, bootstrapWorkspace } from "@/lib/auth";
 import * as schema from "@/lib/db/schema";
 
 // better-auth requires BETTER_AUTH_SECRET.
@@ -172,5 +172,54 @@ describe("auth", () => {
       asResponse: true,
     });
     expect(bobResp.status).toBe(200);
+  });
+});
+
+describe("bootstrapWorkspace (first-owner race safety)", () => {
+  function freshDb() {
+    const file = path.join(mkdtempSync(path.join(tmpdir(), "sentou-boot-")), "t.db");
+    const db = getDb(file);
+    migrate(db, { migrationsFolder: "lib/db/migrations" });
+    return db;
+  }
+
+  async function signUpOwner(db: ReturnType<typeof freshDb>) {
+    const auth = makeAuth(db);
+    const resp: Response = await auth.api.signUpEmail({
+      body: { name: "Alice", email: "alice@example.com", password: "hunter2-but-longer-than-8" },
+      headers: new Headers({ host: "localhost:3000" }),
+      asResponse: true,
+    });
+    expect(resp.status).toBe(200);
+    return db;
+  }
+
+  it("creates exactly one workspace + owner and is idempotent under repeat calls", async () => {
+    const db = await signUpOwner(freshDb());
+    const users = await db.select().from(schema.user);
+    expect(users.length).toBe(1);
+
+    // A racing duplicate call must not create a second org or a second owner.
+    bootstrapWorkspace(db, users[0].id);
+    bootstrapWorkspace(db, users[0].id);
+
+    const orgs = await db.select().from(schema.organization);
+    const members = await db.select().from(schema.member);
+    expect(orgs.length).toBe(1);
+    expect(members.length).toBe(1);
+    expect(members[0].role).toBe("owner");
+    expect(members[0].userId).toBe(users[0].id);
+  });
+
+  it("enforces a unique workspace slug (the constraint that makes the race safe)", async () => {
+    const db = await signUpOwner(freshDb());
+    // A second organization claiming the same slug must be rejected at the DB level, so two
+    // concurrent first-owner bootstraps can never both commit.
+    expect(() =>
+      db
+        .insert(schema.organization)
+        .values({ id: "dup-org", name: "Workspace", slug: "workspace", createdAt: new Date() })
+        .run(),
+    ).toThrow();
   });
 });

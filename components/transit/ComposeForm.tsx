@@ -41,7 +41,7 @@ export function ComposeForm() {
   return (
     <div className="min-h-dvh">
       {/* ── Sticky page header ── */}
-      <header className="sticky top-0 z-20 bg-transit-canvas/95 backdrop-blur-sm border-b border-transit-border px-8 py-5 flex items-center justify-between">
+      <header className="sticky top-0 z-20 bg-transit-canvas/95 backdrop-blur-sm border-b border-transit-border px-4 md:px-8 py-5 flex items-center justify-between">
         <div>
           <div className="flex items-center gap-2.5 mb-1">
             <span className="text-[9px] font-mono tracking-[0.35em] uppercase text-transit-muted">
@@ -65,7 +65,7 @@ export function ComposeForm() {
 
       {/* ── Error banner ── */}
       {state.error && (
-        <div role="alert" aria-live="assertive" className="px-8 pt-5">
+        <div role="alert" aria-live="assertive" className="px-4 md:px-8 pt-5">
           <p className="text-red-400 text-sm font-mono bg-red-400/10 border border-red-400/30 rounded-lg px-4 py-3">
             {state.error}
           </p>
@@ -76,7 +76,7 @@ export function ComposeForm() {
       <form action={formAction} noValidate>
         <div className="grid grid-cols-1 xl:grid-cols-2">
           {/* ── LEFT: form ── */}
-          <div className="border-r border-transit-border p-8 flex flex-col gap-7">
+          <div className="border-r border-transit-border p-4 md:p-8 flex flex-col gap-7">
 
             {/* Route identity */}
             <section aria-labelledby="lbl-identity">
@@ -243,7 +243,7 @@ export function ComposeForm() {
           {/* ── RIGHT: live preview ── */}
           <div className="flex flex-col xl:sticky xl:top-0 xl:h-dvh xl:overflow-hidden">
             {/* Preview header */}
-            <div className="px-8 pt-7 pb-4 border-b border-transit-border flex items-center gap-3">
+            <div className="px-4 md:px-8 pt-7 pb-4 border-b border-transit-border flex items-center gap-3">
               <span className="text-[9px] font-mono tracking-[0.35em] uppercase text-transit-muted">
                 Live Preview
               </span>

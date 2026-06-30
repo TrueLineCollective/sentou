@@ -96,7 +96,7 @@ export function NotificationPrefsPanel({ initialPrefs }: { initialPrefs: Notific
   return (
     <div>
       {/* Email on open row */}
-      <div className="border-b border-transit-border py-5 px-8 flex items-start justify-between hover:bg-white/[0.012] transition-colors duration-100 gap-8">
+      <div className="border-b border-transit-border py-5 px-4 md:px-8 flex items-start justify-between hover:bg-white/[0.012] transition-colors duration-100 gap-8">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-0.5">
             <p className="text-sm font-medium text-transit-periwinkle">Email on open</p>
@@ -124,7 +124,7 @@ export function NotificationPrefsPanel({ initialPrefs }: { initialPrefs: Notific
       </div>
 
       {/* Webhook URL row */}
-      <div className="border-b border-transit-border py-5 px-8 hover:bg-white/[0.012] transition-colors duration-100">
+      <div className="border-b border-transit-border py-5 px-4 md:px-8 hover:bg-white/[0.012] transition-colors duration-100">
         <div className="mb-3">
           <p className="text-sm font-medium text-transit-periwinkle mb-0.5">Webhook URL</p>
           <p className="text-[11px] text-transit-muted font-mono">
@@ -142,7 +142,7 @@ export function NotificationPrefsPanel({ initialPrefs }: { initialPrefs: Notific
       </div>
 
       {/* Save row */}
-      <div className="px-8 py-5 flex items-center justify-between border-b border-transit-border">
+      <div className="px-4 md:px-8 py-5 flex items-center justify-between border-b border-transit-border">
         <div>
           {saveError && (
             <p className="text-xs text-destructive" role="alert">{saveError}</p>

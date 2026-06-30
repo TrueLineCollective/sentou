@@ -1,4 +1,7 @@
+import { eq } from "drizzle-orm";
 import { createLink, OPEN_GATE } from "@/lib/links";
+import { getDb } from "@/lib/db/client";
+import * as schema from "@/lib/db/schema";
 import { getStore, linkUrl } from "@/lib/server-store";
 import { requireOwner } from "@/lib/owner";
 import { rateLimit, clientIp } from "@/lib/rate-limit";
@@ -24,6 +27,7 @@ export async function POST(req: Request) {
   const body = await req.json().catch(() => ({}));
   const html = typeof body.html === "string" ? body.html : "";
   if (!html.trim()) return Response.json({ error: "html is required" }, { status: 400 });
+  const title = typeof body.title === "string" ? body.title.trim() : "";
 
   // Reject a malformed expiry at the boundary instead of silently storing a date that
   // evaluateAccess can never parse (which would otherwise make the link never expire).
@@ -64,5 +68,10 @@ export async function POST(req: Request) {
   }
   // Stamp the link with the owner's userId (null if dev-open with no auth).
   const link = await createLink(getStore(), html, gate, track, verifyEmail, actor?.userId ?? null);
+  // title is excluded from the store's onConflictDoUpdate SET clause, so this post-hoc
+  // write is safe: it will NOT be overwritten by any subsequent put() call on this link.
+  if (title) {
+    getDb().update(schema.links).set({ title }).where(eq(schema.links.id, link.id)).run();
+  }
   return Response.json({ id: link.id, slug: link.slug, url: linkUrl(link.slug), version: 1 });
 }
