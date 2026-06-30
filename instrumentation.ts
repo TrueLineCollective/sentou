@@ -1,7 +1,6 @@
-// Runs once when the server starts (Next.js instrumentation hook). We use it to surface the
-// production-only footguns at boot instead of leaving the operator to discover them from broken
-// links or open endpoints later. SENTOU_SECRET's absence already throws on first crypto use, so
-// it isn't repeated here.
+// Runs once when the server starts (Next.js instrumentation hook). We use it to surface
+// production-only footguns at boot instead of leaving the operator to discover them from
+// broken links or closed endpoints later.
 export async function register() {
   // register() is called in every runtime (nodejs + edge); only run from the Node server process.
   // NEXT_RUNTIME is "nodejs" in the Node runtime and "edge" in the Edge runtime.
@@ -23,7 +22,26 @@ export async function register() {
   if (!process.env.SENTOU_BASE_URL) {
     warn("SENTOU_BASE_URL is not set; generated links will point at http://localhost:3000.");
   }
-  if (!process.env.SENTOU_OWNER_TOKEN) {
-    warn("SENTOU_OWNER_TOKEN is not set; owner and stats endpoints will refuse requests in production.");
+  if (!process.env.SENTOU_SECRET) {
+    warn(
+      "SENTOU_SECRET is not set; a random per-process key will be used " +
+        "(session and access cookies will not survive restarts).",
+    );
+  }
+  // Warn when no owner account exists yet. On a production or internet-exposed instance
+  // with no account, the owner API endpoints will refuse all requests until one is created.
+  // Wrapped in try/catch so an uninitialized or missing DB does not crash boot.
+  try {
+    const db = getDb();
+    const { user } = await import("@/lib/db/schema");
+    const firstUser = db.select({ id: user.id }).from(user).limit(1).get();
+    if (!firstUser) {
+      warn(
+        "No owner account yet; sign up the first owner, then create an API key " +
+          "for automation or MCP use via POST /api/keys.",
+      );
+    }
+  } catch {
+    // DB or table not ready at boot; skip the account check.
   }
 }
