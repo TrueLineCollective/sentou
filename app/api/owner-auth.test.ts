@@ -578,6 +578,104 @@ describe("API key creation endpoint (fix 2)", () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// M2: per-user active API key cap
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("per-user API key cap (M2)", () => {
+  it("rejects key creation when the user already holds MAX_ACTIVE_KEYS active keys", async () => {
+    const dbFile = process.env.SENTOU_DB!;
+    const db = getDb(dbFile);
+    migrate(db, { migrationsFolder: "lib/db/migrations" });
+
+    const { aliceCookie } = await setupWithSessions(db);
+
+    const { POST: keysPost, MAX_ACTIVE_KEYS } = await import("@/app/api/keys/route");
+
+    // Create keys up to the cap.
+    for (let i = 0; i < MAX_ACTIVE_KEYS; i++) {
+      const res = await keysPost(new Request("http://t/api/keys", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          cookie: `better-auth.session_token=${aliceCookie}`,
+        },
+        body: JSON.stringify({ name: `key-${i}` }),
+      }));
+      expect(res.status).toBe(200);
+    }
+
+    // The next creation attempt must be rejected.
+    const overLimitRes = await keysPost(new Request("http://t/api/keys", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        cookie: `better-auth.session_token=${aliceCookie}`,
+      },
+      body: JSON.stringify({ name: "over-limit" }),
+    }));
+    expect(overLimitRes.status).toBe(422);
+    const body = await overLimitRes.json() as { error: string };
+    expect(body.error).toMatch(/limit/i);
+  });
+
+  it("counts only enabled=true keys toward the cap (revoked keys do not count)", async () => {
+    const dbFile = process.env.SENTOU_DB!;
+    const db = getDb(dbFile);
+    migrate(db, { migrationsFolder: "lib/db/migrations" });
+
+    const { aliceCookie } = await setupWithSessions(db);
+
+    const { POST: keysPost, MAX_ACTIVE_KEYS } = await import("@/app/api/keys/route");
+    const { POST: revokePost } = await import("@/app/api/keys/revoke/route");
+
+    // Create MAX_ACTIVE_KEYS keys, then revoke the first one.
+    const firstKeyId: string[] = [];
+    for (let i = 0; i < MAX_ACTIVE_KEYS; i++) {
+      const res = await keysPost(new Request("http://t/api/keys", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          cookie: `better-auth.session_token=${aliceCookie}`,
+        },
+        body: JSON.stringify({ name: `key-${i}` }),
+      }));
+      expect(res.status).toBe(200);
+      if (i === 0) {
+        // Store the DB id of the first key for revocation.
+        const { key } = await res.json() as { key: string };
+        const keyHash = createHash("sha256").update(key).digest("hex");
+        const row = db.select({ id: schema.apiKey.id }).from(schema.apiKey)
+          .where(eq(schema.apiKey.keyHash, keyHash)).get();
+        if (row) firstKeyId.push(row.id);
+      }
+    }
+
+    // Revoke the first key (active count drops to MAX_ACTIVE_KEYS - 1).
+    expect(firstKeyId.length).toBe(1);
+    const revokeRes = await revokePost(new Request("http://t/api/keys/revoke", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        cookie: `better-auth.session_token=${aliceCookie}`,
+      },
+      body: JSON.stringify({ id: firstKeyId[0] }),
+    }));
+    expect(revokeRes.status).toBe(200);
+
+    // Now creating a new key must succeed (active count is below the cap).
+    const newRes = await keysPost(new Request("http://t/api/keys", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        cookie: `better-auth.session_token=${aliceCookie}`,
+      },
+      body: JSON.stringify({ name: "replacement-key" }),
+    }));
+    expect(newRes.status).toBe(200);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Fix 3: role is scoped to the workspace org
 // ─────────────────────────────────────────────────────────────────────────────
 

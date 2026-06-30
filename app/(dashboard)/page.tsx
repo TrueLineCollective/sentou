@@ -176,24 +176,24 @@ function EmptyRoutes() {
           xmlns="http://www.w3.org/2000/svg"
         >
           <text
-            x="16"
+            x="4"
             y="12"
             fontSize="8"
             fill="#565f89"
             fontFamily="monospace"
             letterSpacing="3"
-            textAnchor="middle"
+            textAnchor="start"
           >
             ORIGIN
           </text>
           <text
-            x="304"
+            x="316"
             y="12"
             fontSize="8"
             fill="#565f89"
             fontFamily="monospace"
             letterSpacing="3"
-            textAnchor="middle"
+            textAnchor="end"
           >
             DESTINATION
           </text>
