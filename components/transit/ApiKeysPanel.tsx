@@ -115,7 +115,7 @@ function KeyRow({
 
   return (
     <article
-      className="border-b border-transit-border py-5 px-8 hover:bg-white/[0.012] transition-colors duration-100"
+      className="border-b border-transit-border py-5 px-4 md:px-8 hover:bg-white/[0.012] transition-colors duration-100"
       aria-label={`Key ${lineNum}: ${apiKey.name}`}
     >
       {/* Line ID + status */}
@@ -239,7 +239,7 @@ function MintForm({
   }
 
   return (
-    <div className="px-8 py-6 border-b border-transit-border bg-transit-elevated/30">
+    <div className="px-4 md:px-8 py-6 border-b border-transit-border bg-transit-elevated/30">
       <p className="text-[9px] font-mono tracking-[0.3em] uppercase text-transit-mint mb-4">
         New key
       </p>
@@ -272,7 +272,7 @@ function MintForm({
 
 function EmptyKeys() {
   return (
-    <div className="px-8 py-12 flex flex-col items-center">
+    <div className="px-4 md:px-8 py-12 flex flex-col items-center">
       {/* Dashed line — no active routes */}
       <div className="w-64 mb-6" aria-hidden="true">
         <svg width="100%" height="40" viewBox="0 0 256 40" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -332,7 +332,7 @@ export function ApiKeysPanel({ initialKeys }: { initialKeys: ApiKeyItem[] }) {
   return (
     <div>
       {/* Mint button / header row */}
-      <div className="px-8 py-5 flex items-center justify-between border-b border-transit-border">
+      <div className="px-4 md:px-8 py-5 flex items-center justify-between border-b border-transit-border">
         <p className="text-sm font-medium text-transit-periwinkle/80">
           {initialKeys.length === 0
             ? "No API keys"
