@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { getDb } from "@/lib/db/client";
 import * as schema from "@/lib/db/schema";
+import { isObviouslyPrivateHost } from "@/lib/ssrf";
 
 // GET — return current notification prefs for the authenticated user.
 export async function GET() {
@@ -44,6 +45,11 @@ export async function POST(req: Request) {
       const parsed = new URL(raw);
       if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
         return new Response(JSON.stringify({ error: "Webhook URL must use http or https." }), { status: 400 });
+      }
+      // Fast reject of obviously-internal targets (localhost, literal private IPs). The
+      // authoritative SSRF guard resolves the host at delivery time in lib/notifications.ts.
+      if (isObviouslyPrivateHost(parsed.hostname)) {
+        return new Response(JSON.stringify({ error: "Webhook URL must not point to a private or local address." }), { status: 400 });
       }
       webhookUrl = raw;
     } catch {

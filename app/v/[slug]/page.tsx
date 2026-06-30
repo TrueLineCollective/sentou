@@ -57,8 +57,8 @@ function CheckpointLine({ gradId }: { gradId: string }) {
           <stop offset="100%" stopColor="#7ee787" />
         </linearGradient>
       </defs>
-      <text x="20" y="16" fontSize={9} fill="#565f89" fontFamily="monospace" letterSpacing={2} textAnchor="middle">SENT</text>
-      <text x="746" y="16" fontSize={9} fill="#565f89" fontFamily="monospace" letterSpacing={2} textAnchor="middle">CHECKPOINT</text>
+      <text x="20" y="16" fontSize={9} fill="#828bbf" fontFamily="monospace" letterSpacing={2} textAnchor="middle">SENT</text>
+      <text x="746" y="16" fontSize={9} fill="#828bbf" fontFamily="monospace" letterSpacing={2} textAnchor="middle">CHECKPOINT</text>
       {/* Sender station — periwinkle */}
       <circle cx="20" cy="40" r="13" fill="#1a1b26" stroke="#c0caf5" strokeWidth="4" />
       <circle cx="20" cy="40" r="6" fill="#c0caf5" />
@@ -87,14 +87,14 @@ function ClosedLine() {
       aria-hidden="true"
       className="h-auto md:h-[80px]"
     >
-      <text x="20" y="16" fontSize={9} fill="#565f89" fontFamily="monospace" letterSpacing={2} textAnchor="middle">ORIGIN</text>
-      <text x="400" y="16" fontSize={9} fill="#565f89" fontFamily="monospace" letterSpacing={2} textAnchor="middle">CLOSED</text>
-      <circle cx="20" cy="40" r="13" fill="#1a1b26" stroke="#565f89" strokeWidth="4" />
-      <circle cx="20" cy="40" r="6" fill="#565f89" />
+      <text x="20" y="16" fontSize={9} fill="#828bbf" fontFamily="monospace" letterSpacing={2} textAnchor="middle">ORIGIN</text>
+      <text x="400" y="16" fontSize={9} fill="#828bbf" fontFamily="monospace" letterSpacing={2} textAnchor="middle">CLOSED</text>
+      <circle cx="20" cy="40" r="13" fill="#1a1b26" stroke="#828bbf" strokeWidth="4" />
+      <circle cx="20" cy="40" r="6" fill="#828bbf" />
       <path d="M20,40 L400,40" stroke="#292e42" strokeWidth="7" strokeLinecap="round" strokeDasharray="12 8" />
-      <circle cx="400" cy="40" r="15" fill="#1a1b26" stroke="#565f89" strokeWidth="4" />
-      <line x1="392" y1="32" x2="408" y2="48" stroke="#565f89" strokeWidth="2.5" strokeLinecap="round" />
-      <line x1="408" y1="32" x2="392" y2="48" stroke="#565f89" strokeWidth="2.5" strokeLinecap="round" />
+      <circle cx="400" cy="40" r="15" fill="#1a1b26" stroke="#828bbf" strokeWidth="4" />
+      <line x1="392" y1="32" x2="408" y2="48" stroke="#828bbf" strokeWidth="2.5" strokeLinecap="round" />
+      <line x1="408" y1="32" x2="392" y2="48" stroke="#828bbf" strokeWidth="2.5" strokeLinecap="round" />
     </svg>
   );
 }

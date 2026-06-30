@@ -1,4 +1,4 @@
-# Single-instance deploy. The file store is process-local, so run exactly one replica with a
+# Single-instance deploy. The SQLite database is process-local, so run exactly one replica with a
 # persistent volume. Set the secrets below before `docker compose up -d`.
 services:
   sentou:
@@ -9,15 +9,15 @@ services:
       # Required. Generate with: openssl rand -hex 32
       SENTOU_SECRET: ${SENTOU_SECRET:?set SENTOU_SECRET, e.g. openssl rand -hex 32}
       # The public URL Sentou builds links from. Set this to your real domain.
+      # Better Auth reads BETTER_AUTH_URL first and falls back to SENTOU_BASE_URL; setting this covers both.
       SENTOU_BASE_URL: ${SENTOU_BASE_URL:?set SENTOU_BASE_URL to your public URL}
-      # Required for an internet-exposed instance: gates the owner + stats endpoints.
-      SENTOU_OWNER_TOKEN: ${SENTOU_OWNER_TOKEN:?set SENTOU_OWNER_TOKEN for an exposed deploy}
-      # Optional email sender. Set both to make verifyEmail links a real boundary.
+      # Optional email sender. Set both to make verifyEmail links a real boundary and to send invites in prod.
       SENTOU_RESEND_KEY: ${SENTOU_RESEND_KEY:-}
       SENTOU_EMAIL_FROM: ${SENTOU_EMAIL_FROM:-}
       # Optional retention window; prunes stored viewers/events older than N days.
       SENTOU_RETENTION_DAYS: ${SENTOU_RETENTION_DAYS:-}
-      SENTOU_DB: /data/db.json
+      # SQLite database file, kept on the persistent volume below.
+      SENTOU_DB: /data/sentou.db
     volumes:
       - sentou-data:/data
     restart: unless-stopped

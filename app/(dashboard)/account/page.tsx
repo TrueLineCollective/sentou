@@ -15,7 +15,7 @@ export default async function AccountPage() {
   return (
     <div className="min-h-dvh">
       {/* Sticky header */}
-      <header className="sticky top-0 z-20 bg-transit-canvas/95 backdrop-blur-sm border-b border-transit-border px-8 py-5">
+      <header className="sticky top-0 z-20 bg-transit-canvas/95 backdrop-blur-sm border-b border-transit-border px-4 md:px-8 py-5">
         <div className="flex items-center gap-2.5 mb-1">
           <span className="text-[9px] font-mono tracking-[0.35em] uppercase text-transit-muted">
             Identity
@@ -32,7 +32,7 @@ export default async function AccountPage() {
 
       {/* ── Profile section ───────────────────────────────────────────────── */}
       <section aria-labelledby="profile-heading">
-        <div className="px-8 pt-8 pb-3">
+        <div className="px-4 md:px-8 pt-8 pb-3">
           <p
             id="profile-heading"
             className="text-[9px] font-mono tracking-[0.35em] uppercase text-transit-muted"
@@ -42,19 +42,19 @@ export default async function AccountPage() {
         </div>
 
         {/* Transit route line — workspace → this user */}
-        <div className="px-8 pb-5">
+        <div className="px-4 md:px-8 pb-5">
           <div className="flex items-center gap-0" aria-hidden="true">
             <div className="w-3 h-3 rounded-full border-2 border-transit-muted/50 bg-transit-canvas flex-shrink-0" />
             <div
               className="flex-1 max-w-[120px] h-[2px]"
-              style={{ background: "linear-gradient(to right, #565f89, #c0caf5)" }}
+              style={{ background: "linear-gradient(to right, #828bbf, #c0caf5)" }}
             />
             <div className="w-3.5 h-3.5 rounded-full border-2 border-transit-periwinkle bg-transit-canvas flex-shrink-0 shadow-[0_0_8px_rgba(192,202,245,0.3)]" />
           </div>
         </div>
 
         {/* Name */}
-        <div className="border-b border-transit-border py-5 px-8 flex items-center justify-between hover:bg-white/[0.012] transition-colors duration-100">
+        <div className="border-b border-transit-border py-5 px-4 md:px-8 flex items-center justify-between hover:bg-white/[0.012] transition-colors duration-100">
           <div>
             <p className="text-sm font-medium text-transit-periwinkle">Name</p>
             <p className="text-[11px] text-transit-muted mt-0.5 font-mono">display name</p>
@@ -65,7 +65,7 @@ export default async function AccountPage() {
         </div>
 
         {/* Email (read-only) */}
-        <div className="border-b border-transit-border py-5 px-8 flex items-center justify-between hover:bg-white/[0.012] transition-colors duration-100">
+        <div className="border-b border-transit-border py-5 px-4 md:px-8 flex items-center justify-between hover:bg-white/[0.012] transition-colors duration-100">
           <div>
             <p className="text-sm font-medium text-transit-periwinkle">Email</p>
             <p className="text-[11px] text-transit-muted mt-0.5 font-mono">cannot be changed here</p>
@@ -78,7 +78,7 @@ export default async function AccountPage() {
 
       {/* ── Password section ──────────────────────────────────────────────── */}
       <section aria-labelledby="password-heading" className="mt-8">
-        <div className="px-8 pb-4 border-b border-transit-border">
+        <div className="px-4 md:px-8 pb-4 border-b border-transit-border">
           <p
             id="password-heading"
             className="text-[9px] font-mono tracking-[0.35em] uppercase text-transit-muted"
@@ -87,7 +87,7 @@ export default async function AccountPage() {
           </p>
         </div>
 
-        <div className="px-8 py-8 max-w-md">
+        <div className="px-4 md:px-8 py-8 max-w-md">
           <ChangePasswordForm />
         </div>
       </section>

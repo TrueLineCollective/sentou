@@ -81,7 +81,7 @@ curl -s -X POST localhost:3000/api/publish \
 
 Open the `url` it returns to see your artifact in its sandbox. To update it, POST `{ "id": "...", "html": "..." }` to `/api/republish` and the same link picks up the change.
 
-To gate a link, pass `requireEmail`, `allowedDomains`, or `expiresAt` at publish time. A gated link asks for an email before it loads, and `/api/revoke` shuts it off.
+To gate a link, pass `requireEmail`, `allowedDomains`, or `expiresAt` at publish time. A gated link asks for an email before it loads, and `/api/revoke` shuts it off. Pass an optional `title` to label the link in your dashboard (links published without one show their slug).
 
 To turn the email gate into a real boundary, pass `verifyEmail: true` at publish time and configure an email sender by setting `SENTOU_RESEND_KEY` (a [Resend](https://resend.com) API key) and `SENTOU_EMAIL_FROM` (the verified from-address). A verifying link emails a one-time code and only grants access once the recipient enters it. Leave the sender unset and verification falls back to logging the code to the server console, which is useful for local testing but is not a boundary.
 
@@ -143,6 +143,7 @@ Every endpoint takes and returns JSON. The write endpoints (publish, republish, 
 # Publish, with the full gate. Every gate field is optional; omit them for a public link.
 curl -X POST $URL/api/publish -H "authorization: Bearer $TOKEN" -H 'content-type: application/json' -d '{
   "html": "<h1>Q3 board deck</h1>",
+  "title": "Q3 board deck",
   "requireEmail": true,
   "verifyEmail": true,
   "allowedDomains": ["acme.com"],
