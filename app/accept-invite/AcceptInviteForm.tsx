@@ -112,6 +112,7 @@ function RouteLineHero({ workspaceName }: { workspaceName: string }) {
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       aria-hidden="true"
+      className="h-auto md:h-[80px]"
     >
       <defs>
         <linearGradient
@@ -250,11 +251,11 @@ export function AcceptInviteForm({ token, email, workspaceName, role }: Props) {
   const roleLabel = role ? role.charAt(0).toUpperCase() + role.slice(1) : "Member";
 
   return (
-    <div className="transit-canvas relative min-h-screen flex flex-col bg-transit-canvas text-transit-periwinkle overflow-hidden">
+    <div className="transit-canvas relative min-h-dvh flex flex-col bg-transit-canvas text-transit-periwinkle overflow-hidden">
       <TransitGrid />
 
       {/* ── Top nav ──────────────────────────────────────────────────────── */}
-      <nav className="relative z-10 flex items-center justify-between px-12 pt-8 pb-4">
+      <nav className="relative z-10 flex items-center justify-between px-4 md:px-12 pt-6 md:pt-8 pb-4">
         <Wordmark size="md" />
         <span className="text-[10px] font-mono tracking-[0.28em] uppercase text-transit-muted">
           Boarding
@@ -263,23 +264,13 @@ export function AcceptInviteForm({ token, email, workspaceName, role }: Props) {
 
       {/* ── Main composition ─────────────────────────────────────────────── */}
       {/*
-       * CSS grid: 62% / 38%, three rows (heading / route / form).
+       * CSS grid: 62% / 38% at md+, single column on mobile.
        * The workspace (origin, periwinkle) extends an invitation line that
        * terminates at the destination dot — directly above the first form field.
        */}
-      <div
-        className="relative z-10 flex-1"
-        style={{
-          display: "grid",
-          gridTemplateColumns: "62% 38%",
-          gridTemplateRows: "auto auto 1fr",
-          paddingLeft: "3rem",
-          paddingRight: "3rem",
-          paddingBottom: "3rem",
-        }}
-      >
+      <div className="relative z-10 flex-1 grid grid-cols-1 md:grid-cols-[62%_38%] md:grid-rows-[auto_auto_1fr] px-4 md:px-12 pb-4 md:pb-12">
         {/* ── Row 1, Col 1: Heading + context ───────────────────────────── */}
-        <div className="pt-8 pb-6 pr-16">
+        <div className="pt-6 md:pt-8 pb-4 md:pb-6 md:pr-16">
           <div className="flex items-center gap-3 mb-5">
             <span className="text-[9px] font-mono tracking-[0.35em] uppercase text-transit-muted">
               Line 01
@@ -306,15 +297,15 @@ export function AcceptInviteForm({ token, email, workspaceName, role }: Props) {
         </div>
 
         {/* ── Row 1, Col 2: Empty — space above form ────────────────────── */}
-        <div />
+        <div className="hidden md:block" />
 
         {/* ── Row 2, Cols 1+2: Route line (full-width hero) ─────────────── */}
-        <div style={{ gridColumn: "1 / -1" }} className="py-1">
+        <div className="col-span-full py-1">
           <RouteLineHero workspaceName={workspaceName} />
         </div>
 
         {/* ── Row 3, Col 1: Below-origin context ────────────────────────── */}
-        <div className="pt-6 pr-16">
+        <div className="pt-4 md:pt-6 md:pr-16 order-last md:order-none">
           <p className="text-xs text-transit-muted">
             Invited as{" "}
             <span className="font-mono text-transit-periwinkle/80">{email}</span>.
