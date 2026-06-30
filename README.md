@@ -6,7 +6,7 @@
 [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](./LICENSE)
 
 <p align="center">
-  <img src="assets/hero.png" alt="A private investor update shared through Sentou" width="820" />
+  <img src="assets/dashboard-routes.png" alt="Sentou Routes board, showing live tracked links as a transit line network" width="820" />
 </p>
 
 Sentou publishes a Claude artifact, or any HTML, to a private link you control. You decide who can open it. You keep editing in place, and the link never breaks. Everything runs on your own infrastructure, so the document and the list of people who opened it stay on a server you own.
@@ -22,11 +22,18 @@ This is early. The core works and is covered by tests, but a good part of the ro
 
 ## What it does today
 
+- A real web dashboard for managing your links: a Routes board (all your links, with open counts and live/expired/revoked status), a Compose screen with a sandboxed live preview, per-link analytics with a Traveler Map showing who opened what and for how long, and Team, Settings, and Account screens.
+- Multi-user accounts with roles and invitations. The first account to sign up becomes the owner. Everyone else gets in by invite only. Members share the same workspace and can see and manage its links based on their role.
 - Publish an artifact or raw HTML to a link, over the HTTP API or from inside Claude through the MCP server.
 - Edit in Claude and republish to the same link. The URL stays put and everyone who already has it keeps access. The link follows your latest version instead of freezing a copy.
 - Control who gets in: require an email, restrict to a company domain, set an expiry, or revoke a link when you are done.
-- See who opened a link, when, and how long they stayed, if you turn it on. Tracking is off by default and opt-in per link (`track: true` at publish). When it is on, the viewer tells the recipient the link records their visit, and you read the totals back from `/api/stats`.
+- See who opened a link, when, and how long they stayed, if you turn it on. Tracking is off by default and opt-in per link (`track: true` at publish). When it is on, the viewer tells the recipient the link records their visit, and you read the totals back from the dashboard or from `/api/stats`. Every open, viewer email, and dwell time stays on your server.
 - Every artifact runs sandboxed. It loads in an isolated, opaque origin (an `allow-scripts` iframe with no same-origin access, backed by a `sandbox` directive on the bytes themselves), so its JavaScript stays interactive but cannot reach the cookies, session, or data on your domain. That holds even when someone opens the raw artifact URL directly, not only inside the viewer.
+- Self-hostable with zero external services. The store is a single SQLite database. Auth is handled by Better Auth. No third-party identity providers or managed databases are required.
+
+<p align="center">
+  <img src="assets/dashboard-analytics.png" alt="Sentou Traveler Map, showing per-link analytics with verified viewer emails and dwell time" width="820" />
+</p>
 
 How hard the email gate locks depends on whether you wire an email sender. Set `SENTOU_RESEND_KEY` and `SENTOU_EMAIL_FROM` and a verifying gated link emails a one-time code to the address someone types and only grants access once they enter it back. The email is then verified, the domain allowlist riding on it becomes a real lock, and that verified address is the only kind Sentou ever stores. Without verification the email is access friction, not identity: a gated link asks for an address and enforces expiry and revocation, but does not confirm or store it, so a typed email is a key for that session, not a record. In that mode the unguessable link, expiry, and revoke are the real controls, and they hold no matter what email someone enters.
 
@@ -44,7 +51,7 @@ Sentou stores as little as it can, on infrastructure you control. Here is exactl
 - **For a gated link with `verifyEmail` on**, the verified email of each viewer. A gate without verification asks for an email as access friction but does not store it. Sentou never persists an address it has not verified.
 - **For a tracked link**, an open event per visit (timestamp and dwell time), attributed to a verified viewer's email or to `anon` otherwise.
 
-It all lives in one JSON file at `SENTOU_DB`, in plaintext. There is no telemetry and nothing is sent anywhere off your server. Protect that file the way you would any file of personal data: restricted permissions, and disk encryption on an exposed host. Set `SENTOU_RETENTION_DAYS` to prune viewer and event data older than a window, and use `/api/forget` to erase a link's data, or one viewer's, on request.
+Everything lives in a single SQLite database at `SENTOU_DB`. There is no telemetry and nothing is sent anywhere off your server. Protect that file the way you would any file of personal data: restricted permissions, and disk encryption on an exposed host. Set `SENTOU_RETENTION_DAYS` to prune viewer and event data older than a window, and use `/api/forget` to erase a link's data, or one viewer's, on request.
 
 ## Quickstart (self-host)
 
@@ -54,14 +61,19 @@ Requires Node 20.9 or newer and Git.
 git clone https://github.com/TrueLineCollective/sentou.git
 cd sentou
 npm install
-echo "SENTOU_SECRET=$(openssl rand -hex 32)" > .env.local   # signs access cookies; skip it locally and a random per-process key is used (dev sessions reset on restart)
+echo "SENTOU_SECRET=$(openssl rand -hex 32)" > .env.local   # signs session cookies; skip it locally and a random per-process key is used (dev sessions reset on restart)
 npm run dev
 ```
 
-Publish something:
+Open `http://localhost:3000/setup` to create the owner account. The first account is the owner; further signups are invite-only. After setup, the dashboard is at `http://localhost:3000/`.
+
+From the dashboard you can compose new routes, copy viewer URLs, and watch open counts climb in real time. For automation or MCP use, generate an API key from the Account screen or via `POST /api/keys` (the key value is returned once and not stored). Pass it as `Authorization: Bearer <key>` on any write endpoint.
+
+To publish directly without the dashboard:
 
 ```bash
 curl -s -X POST localhost:3000/api/publish \
+  -H 'authorization: Bearer <your-api-key>' \
   -H 'content-type: application/json' \
   -d '{"html":"<h1>hello</h1>"}'
 # -> { "id": "...", "slug": "...", "url": "http://localhost:3000/v/...", "version": 1 }
@@ -81,7 +93,7 @@ Sentou ships an MCP server, so you can publish without leaving a Claude session.
 claude mcp add sentou -- npx tsx "$(pwd)/mcp/server.ts"
 ```
 
-Claude gets two tools, `publish_artifact(html)` and `republish(id, html)`. If your instance is not on localhost, or you need to authenticate, pass both through the MCP server's environment, otherwise a hardened instance answers the publish call with a bare `401`. Generate a key from the dashboard or with `POST /api/keys` (the key value is returned once):
+Claude gets two tools, `publish_artifact(html)` and `republish(id, html)`. If your instance is not on localhost, or you need to authenticate, pass both through the MCP server's environment, otherwise a hardened instance answers the publish call with a bare `401`. Generate a key from the Account screen or with `POST /api/keys` (the key value is returned once):
 
 ```bash
 claude mcp add sentou \
@@ -92,9 +104,9 @@ claude mcp add sentou \
 
 ## Deploying
 
-`npm run dev` is for local work, not the internet. Sentou keeps its data in a single JSON file on local disk, so run it as **one instance with a persistent volume**. Do not deploy it to a serverless or autoscaling platform (Vercel Functions, multi-replica containers): each instance would get its own store and your links would scatter across them. One container, one disk.
+`npm run dev` is for local work, not the internet. Sentou keeps its data in a single SQLite database on local disk, so run it as **one instance with a persistent volume**. Do not deploy it to a serverless or autoscaling platform (Vercel Functions, multi-replica containers): each instance would get its own store and your links would scatter across them. One container, one disk.
 
-The store reads and rewrites that whole JSON file on each change. That is fine for personal and team scale (dozens of links, thousands of events) and keeps the dependency surface at zero, but it is not built for high traffic. Heavy, multi-tenant volume is what the hosted tier is for. Put a reverse proxy you control (Caddy, nginx, your platform's ingress) in front for TLS and so the per-IP rate limiting can trust its client address.
+The store is a SQLite file, so it handles personal and team scale (dozens of links, thousands of events) with zero external services, but it is not built for high traffic. Heavy, multi-tenant volume is what the hosted tier is for. Put a reverse proxy you control (Caddy, nginx, your platform's ingress) in front for TLS and so the per-IP rate limiting can trust its client address.
 
 ### With Docker
 
@@ -119,9 +131,9 @@ SENTOU_SECRET=... SENTOU_BASE_URL=https://... npm run start
 | --- | --- |
 | `SENTOU_SECRET` | Signs and encrypts session and access cookies. Required in production. Generate with `openssl rand -hex 32`. Outside production a random per-process key is used (dev sessions reset on restart). |
 | `SENTOU_BASE_URL` | The public URL links are built from. Left unset, generated links point at `http://localhost:3000`. Better Auth reads `BETTER_AUTH_URL` first and falls back to `SENTOU_BASE_URL`; set either one. |
-| (owner auth) | Owner endpoints (publish, republish, revoke, stats, forget) require authentication. Send a logged-in Better Auth session cookie or `Authorization: Bearer <key>` with a per-user API key. The first account to sign up becomes the owner; further accounts are invite-only. Mint an API key for automation or MCP use via `POST /api/keys`. The plaintext key is returned once and not stored. |
+| (owner auth) | The first account to sign up becomes the owner. All other signups require an invitation sent from the dashboard or via the API. Mint an API key for automation or MCP use from the Account screen or via `POST /api/keys`. The plaintext key is returned once and not stored. Send it as `Authorization: Bearer <key>` on write endpoints. |
 
-Optional: `SENTOU_RESEND_KEY` + `SENTOU_EMAIL_FROM` make `verifyEmail` links a real boundary, and `SENTOU_RETENTION_DAYS` prunes stored viewer and tracking data older than N days.
+Optional: `SENTOU_RESEND_KEY` + `SENTOU_EMAIL_FROM` make `verifyEmail` links a real boundary and are required to send workspace invitations in production. `SENTOU_RETENTION_DAYS` prunes stored viewer and tracking data older than N days.
 
 ## API
 
@@ -151,7 +163,7 @@ curl -X POST $URL/api/forget   -H "authorization: Bearer $TOKEN" -H "$CT" -d '{"
 
 ## What's next
 
-Shipped so far: the publish and republish loop, the sandboxed viewer, the MCP server, the gating layer (email, domain allowlist, expiry, revoke, email verification), and per-recipient tracking.
+Shipped so far: the web dashboard (Routes board, Compose with live preview, per-link analytics with Traveler Map, Team, Settings, Account), multi-user accounts with owner and invite-only member roles, the publish and republish loop, the sandboxed viewer, the MCP server, the gating layer (email, domain allowlist, expiry, revoke, email verification), and per-recipient tracking.
 
 Next, roughly in order: a hosted version for anyone who would rather not run a server, then the enterprise pieces (SSO, audit logs, data residency). Hosting comes first because it is what funds the rest.
 
