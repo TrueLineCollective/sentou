@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -58,6 +59,18 @@ export function RouteCardActions({
       className="flex items-center gap-1.5"
       aria-label={`Actions for route ${slug}`}
     >
+      <Link
+        href={`/routes/${linkId}`}
+        className={cn(
+          btn,
+          "text-transit-muted hover:text-transit-periwinkle",
+          "border-transit-border/40 hover:border-transit-border",
+        )}
+        aria-label={`View analytics for route ${slug}`}
+      >
+        Analytics
+      </Link>
+
       <a
         href={viewerUrl}
         target="_blank"
