@@ -1,4 +1,5 @@
 import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
+import { user } from "./auth-schema";
 
 export * from "./auth-schema";
 
@@ -39,4 +40,11 @@ export const events = sqliteTable("events", {
   version: integer("version").notNull(),
   openedAt: text("opened_at").notNull(),
   dwellMs: integer("dwell_ms").notNull().default(0),
+});
+
+// Per-user notification preferences. No row = all channels off (default).
+export const notificationPrefs = sqliteTable("notification_prefs", {
+  userId: text("user_id").primaryKey().references(() => user.id, { onDelete: "cascade" }),
+  emailOnOpen: integer("email_on_open", { mode: "boolean" }).notNull().default(false),
+  webhookUrl: text("webhook_url"),
 });

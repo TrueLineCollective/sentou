@@ -1,6 +1,10 @@
 export interface EmailSender {
   sendCode(to: string, code: string): Promise<void>;
   sendInvite(to: string, acceptUrl: string): Promise<void>;
+  sendOpenNotification(
+    to: string,
+    data: { linkTitle: string | null; viewer: string; openedAt: string },
+  ): Promise<void>;
 }
 
 const consoleSender: EmailSender = {
@@ -26,6 +30,17 @@ const consoleSender: EmailSender = {
       return;
     }
     console.log(`[sentou] invitation for ${to}: ${acceptUrl}`);
+  },
+  async sendOpenNotification(to, { linkTitle, viewer, openedAt }) {
+    if (process.env.NODE_ENV === "production") {
+      console.warn(
+        "[sentou] no email sender configured; cannot deliver open notification. " +
+          "Set SENTOU_RESEND_KEY + SENTOU_EMAIL_FROM.",
+      );
+      return;
+    }
+    const title = linkTitle ?? "(untitled)";
+    console.log(`[sentou] open notification for ${to}: "${title}" opened by ${viewer} at ${openedAt}`);
   },
 };
 
@@ -54,6 +69,34 @@ function resendSender(apiKey: string, from: string): EmailSender {
         }),
       });
       if (!res.ok) throw new Error(`invitation email send failed: ${res.status}`);
+    },
+    async sendOpenNotification(to, { linkTitle, viewer, openedAt }) {
+      const title = linkTitle ?? "(untitled)";
+      const openedDate = new Date(openedAt).toLocaleString("en-US", {
+        month: "short", day: "numeric", year: "numeric",
+        hour: "numeric", minute: "2-digit", timeZoneName: "short",
+      });
+      const res = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: { authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
+        body: JSON.stringify({
+          from, to,
+          subject: `"${title}" was opened`,
+          html:
+            `<div style="font-family:sans-serif;color:#1a1b26;background:#f9f9fb;padding:32px">` +
+            `<p style="margin:0 0 8px;font-size:12px;letter-spacing:0.2em;text-transform:uppercase;color:#565f89;font-family:monospace">Sentou — open alert</p>` +
+            `<h1 style="margin:0 0 24px;font-size:24px;font-weight:900;color:#1a1b26">"${title}"<span style="color:#2d8f3e">.</span></h1>` +
+            `<p style="margin:0 0 8px;font-size:15px;color:#1a1b26">Your link was opened.</p>` +
+            `<table style="border-collapse:collapse;width:100%;margin-top:16px">` +
+            `<tr><td style="padding:10px 0;border-top:1px solid #e4e7f0;font-size:12px;color:#565f89;font-family:monospace;text-transform:uppercase;letter-spacing:0.15em">Viewer</td>` +
+            `<td style="padding:10px 0;border-top:1px solid #e4e7f0;font-size:14px;color:#1a1b26;text-align:right">${viewer}</td></tr>` +
+            `<tr><td style="padding:10px 0;border-top:1px solid #e4e7f0;font-size:12px;color:#565f89;font-family:monospace;text-transform:uppercase;letter-spacing:0.15em">Opened</td>` +
+            `<td style="padding:10px 0;border-top:1px solid #e4e7f0;font-size:14px;color:#1a1b26;text-align:right">${openedDate}</td></tr>` +
+            `</table>` +
+            `</div>`,
+        }),
+      });
+      if (!res.ok) throw new Error(`open notification email send failed: ${res.status}`);
     },
   };
 }
