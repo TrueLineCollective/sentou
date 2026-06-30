@@ -51,6 +51,8 @@ export function RouteCardActions({
   }
 
   const btn = cn(
+    // 44px min touch target on mobile; compact on desktop (md+).
+    "inline-flex items-center justify-center min-h-[44px] md:min-h-0",
     "px-2.5 py-1 text-[9px] font-mono tracking-[0.2em] uppercase border rounded",
     "transition-colors duration-150",
   );

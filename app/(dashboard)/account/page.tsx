@@ -47,7 +47,7 @@ export default async function AccountPage() {
             <div className="w-3 h-3 rounded-full border-2 border-transit-muted/50 bg-transit-canvas flex-shrink-0" />
             <div
               className="flex-1 max-w-[120px] h-[2px]"
-              style={{ background: "linear-gradient(to right, #565f89, #c0caf5)" }}
+              style={{ background: "linear-gradient(to right, #828bbf, #c0caf5)" }}
             />
             <div className="w-3.5 h-3.5 rounded-full border-2 border-transit-periwinkle bg-transit-canvas flex-shrink-0 shadow-[0_0_8px_rgba(192,202,245,0.3)]" />
           </div>
