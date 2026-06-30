@@ -76,7 +76,7 @@ PORT=3001 npm run dev
 
 Open `http://localhost:3000/setup` to create the owner account. The first account is the owner; further signups are invite-only. After setup, the dashboard is at `http://localhost:3000/`.
 
-From the dashboard you can compose new routes, copy viewer URLs, and watch open counts climb in real time. For automation or MCP use, generate an API key from the Account screen or via `POST /api/keys` (the key value is returned once and not stored). Pass it as `Authorization: Bearer <key>` on any write endpoint.
+From the dashboard you can compose new routes, copy viewer URLs, and watch open counts climb in real time. In Compose you can paste HTML or drop in an `.html` file (drag-and-drop or the Upload button), with a live sandboxed preview before you publish. For automation or MCP use, generate an API key from the Account screen or via `POST /api/keys` (the key value is returned once and not stored). Pass it as `Authorization: Bearer <key>` on any write endpoint.
 
 To publish directly without the dashboard:
 
