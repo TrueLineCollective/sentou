@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { publishAction } from "@/app/(dashboard)/compose/actions";
 import { INITIAL_STATE } from "@/app/(dashboard)/compose/state";
+import { validateHtmlUpload } from "@/lib/html-upload";
+import { cn } from "@/lib/utils";
 
 const PREVIEW_DEBOUNCE_MS = 300;
 
@@ -18,6 +20,14 @@ export function ComposeForm() {
   const [previewHtml, setPreviewHtml] = useState("");
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Upload-an-.html-file affordance. The file is read in the browser into the payload textarea,
+  // so it flows through the same publishAction + sandboxed preview as pasted HTML. Nothing is
+  // uploaded to the server and no new request surface is added.
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [dragOver, setDragOver] = useState(false);
+  const [fileName, setFileName] = useState<string | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
   // Redirect to Routes home when a slug comes back (success path)
   useEffect(() => {
     if (state.slug) {
@@ -25,8 +35,42 @@ export function ComposeForm() {
     }
   }, [state.slug, router]);
 
+  function loadFile(file: File) {
+    setUploadError(null);
+    const check = validateHtmlUpload(file);
+    if (!check.ok) {
+      setUploadError(check.error);
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const text = typeof reader.result === "string" ? reader.result : "";
+      if (textareaRef.current) textareaRef.current.value = text;
+      setPreviewHtml(text);
+      setFileName(file.name);
+    };
+    reader.onerror = () => setUploadError("Could not read that file. Paste the HTML instead.");
+    reader.readAsText(file);
+  }
+
+  function handleFileInput(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (file) loadFile(file);
+    e.target.value = ""; // let the same file be selected again
+  }
+
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault();
+    setDragOver(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) loadFile(file);
+  }
+
   function handleHtmlChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
     const val = e.target.value;
+    // The textarea is the source of truth; once the user edits, drop the loaded-file note.
+    if (fileName) setFileName(null);
+    if (uploadError) setUploadError(null);
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => setPreviewHtml(val), PREVIEW_DEBOUNCE_MS);
   }
@@ -106,29 +150,77 @@ export function ComposeForm() {
 
               {/* HTML payload */}
               <div>
-                <label
-                  htmlFor="html"
-                  className="block text-[10px] font-mono tracking-[0.2em] uppercase text-transit-muted mb-1.5"
+                <div className="flex items-center justify-between mb-1.5 gap-3">
+                  <label
+                    htmlFor="html"
+                    className="block text-[10px] font-mono tracking-[0.2em] uppercase text-transit-muted"
+                  >
+                    HTML Payload{" "}
+                    <span className="text-transit-mint" aria-label="required">
+                      *
+                    </span>
+                  </label>
+                  <label className="cursor-pointer flex-shrink-0 text-[10px] font-mono tracking-[0.2em] uppercase text-transit-mint/80 hover:text-transit-mint border border-transit-border/60 hover:border-transit-mint/50 rounded px-2.5 py-1 transition-colors duration-150 focus-within:ring-1 focus-within:ring-transit-mint">
+                    Upload .html
+                    <input
+                      type="file"
+                      accept=".html,.htm,text/html"
+                      onChange={handleFileInput}
+                      className="sr-only"
+                    />
+                  </label>
+                </div>
+                <div
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setDragOver(true);
+                  }}
+                  onDragLeave={(e) => {
+                    e.preventDefault();
+                    setDragOver(false);
+                  }}
+                  onDrop={handleDrop}
+                  className="relative"
                 >
-                  HTML Payload{" "}
-                  <span className="text-transit-mint" aria-label="required">
-                    *
-                  </span>
-                </label>
-                <textarea
-                  id="html"
-                  name="html"
-                  rows={14}
-                  onChange={handleHtmlChange}
-                  placeholder={"<!DOCTYPE html>\n<html>\n  <body>\n    <h1>Hello</h1>\n  </body>\n</html>"}
-                  required
-                  aria-required="true"
-                  aria-describedby="html-hint"
-                  className="w-full font-mono text-xs bg-transit-surface border border-transit-border text-transit-periwinkle rounded-lg px-3.5 py-3 placeholder:text-transit-muted/40 focus:outline-none focus:ring-1 focus:ring-transit-mint focus:border-transit-mint transition-colors duration-150 resize-y"
-                />
-                <p id="html-hint" className="mt-1 text-[10px] text-transit-muted font-mono">
-                  Full HTML document served to recipients. Scripts are allowed; same-origin access is blocked.
-                </p>
+                  <textarea
+                    id="html"
+                    name="html"
+                    ref={textareaRef}
+                    rows={14}
+                    onChange={handleHtmlChange}
+                    placeholder={"<!DOCTYPE html>\n<html>\n  <body>\n    <h1>Hello</h1>\n  </body>\n</html>\n\n...or drop an .html file here"}
+                    required
+                    aria-required="true"
+                    aria-describedby="html-hint"
+                    className={cn(
+                      "w-full font-mono text-xs bg-transit-surface border text-transit-periwinkle rounded-lg px-3.5 py-3 placeholder:text-transit-muted/40 focus:outline-none focus:ring-1 focus:ring-transit-mint focus:border-transit-mint transition-colors duration-150 resize-y",
+                      dragOver ? "border-transit-mint" : "border-transit-border",
+                    )}
+                  />
+                  {dragOver && (
+                    <div
+                      className="absolute inset-0 flex items-center justify-center rounded-lg border-2 border-dashed border-transit-mint bg-transit-canvas/85 pointer-events-none"
+                      aria-hidden="true"
+                    >
+                      <span className="text-[10px] font-mono tracking-[0.25em] uppercase text-transit-mint">
+                        Drop .html to load
+                      </span>
+                    </div>
+                  )}
+                </div>
+                {uploadError ? (
+                  <p id="html-hint" role="alert" className="mt-1 text-[10px] text-red-400 font-mono">
+                    {uploadError}
+                  </p>
+                ) : fileName ? (
+                  <p id="html-hint" className="mt-1 text-[10px] text-transit-mint font-mono">
+                    Loaded {fileName}. Edit below or dispatch.
+                  </p>
+                ) : (
+                  <p id="html-hint" className="mt-1 text-[10px] text-transit-muted font-mono">
+                    Paste HTML, or drop / upload an .html file. Scripts run; same-origin access is blocked.
+                  </p>
+                )}
               </div>
             </section>
 

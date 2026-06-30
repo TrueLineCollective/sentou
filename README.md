@@ -61,18 +61,27 @@ Requires Node 20.9 or newer and Git.
 git clone https://github.com/TrueLineCollective/sentou.git
 cd sentou
 npm install
-echo "SENTOU_SECRET=$(openssl rand -hex 32)" > .env.local   # signs session cookies; skip it locally and a random per-process key is used (dev sessions reset on restart)
+echo "SENTOU_SECRET=$(openssl rand -hex 32)" > .env.local   # required in production; omit for local dev and a random per-process key is used (dev sessions reset on restart)
 npm run dev
 ```
 
+If port 3000 is already in use, run on another port and tell Sentou which public URL to build links from, otherwise the links it returns will point at port 3000:
+
+```bash
+echo "SENTOU_BASE_URL=http://localhost:3001" >> .env.local
+PORT=3001 npm run dev
+```
+
+(See `.env.example` for every available setting.)
+
 Open `http://localhost:3000/setup` to create the owner account. The first account is the owner; further signups are invite-only. After setup, the dashboard is at `http://localhost:3000/`.
 
-From the dashboard you can compose new routes, copy viewer URLs, and watch open counts climb in real time. For automation or MCP use, generate an API key from the Account screen or via `POST /api/keys` (the key value is returned once and not stored). Pass it as `Authorization: Bearer <key>` on any write endpoint.
+From the dashboard you can compose new routes, copy viewer URLs, and watch open counts climb in real time. In Compose you can paste HTML or drop in an `.html` file (drag-and-drop or the Upload button), with a live sandboxed preview before you publish. For automation or MCP use, generate an API key from the Account screen or via `POST /api/keys` (the key value is returned once and not stored). Pass it as `Authorization: Bearer <key>` on any write endpoint.
 
 To publish directly without the dashboard:
 
 ```bash
-curl -s -X POST localhost:3000/api/publish \
+curl -s -X POST http://localhost:3000/api/publish \
   -H 'authorization: Bearer <your-api-key>' \
   -H 'content-type: application/json' \
   -d '{"html":"<h1>hello</h1>"}'
@@ -118,6 +127,8 @@ docker compose up -d --build
 
 The store lives in the `sentou-data` volume and survives restarts. Put a TLS-terminating reverse proxy (Caddy, nginx, your platform's ingress) in front of it.
 
+Then open `https://your-domain/setup` and create the owner account right away. Until you do, the first visitor to `/setup` claims ownership, so claim it before you share the URL.
+
 ### Without Docker
 
 ```bash
@@ -125,12 +136,15 @@ npm ci && npm run build
 SENTOU_SECRET=... SENTOU_BASE_URL=https://... npm run start
 ```
 
+`npm run start` is the supported command here. Because the build emits a standalone bundle, Next.js prints a warning suggesting `node .next/standalone/server.js` instead. Ignore it for this deployment style: that standalone server expects assets and the database migrations to be copied alongside it (the Docker image does this), so use `npm run start`, which runs from the project root where everything is already in place.
+
 ### Environment for an exposed instance
 
 | Variable | Why |
 | --- | --- |
 | `SENTOU_SECRET` | Signs and encrypts session and access cookies. Required in production. Generate with `openssl rand -hex 32`. Outside production a random per-process key is used (dev sessions reset on restart). |
 | `SENTOU_BASE_URL` | The public URL links are built from. Left unset, generated links point at `http://localhost:3000`. Better Auth reads `BETTER_AUTH_URL` first and falls back to `SENTOU_BASE_URL`; set either one. |
+| `BETTER_AUTH_URL` | Optional. Overrides `SENTOU_BASE_URL` for auth only. Setting it (or `SENTOU_BASE_URL`) to a non-localhost host also activates the exposed-instance posture: write endpoints then require an authenticated session or API key. |
 | (owner auth) | The first account to sign up becomes the owner. All other signups require an invitation sent from the dashboard or via the API. Mint an API key for automation or MCP use from the Account screen or via `POST /api/keys`. The plaintext key is returned once and not stored. Send it as `Authorization: Bearer <key>` on write endpoints. |
 
 Optional: `SENTOU_RESEND_KEY` + `SENTOU_EMAIL_FROM` make `verifyEmail` links a real boundary and are required to send workspace invitations in production. `SENTOU_RETENTION_DAYS` prunes stored viewer and tracking data older than N days.
