@@ -22,12 +22,14 @@ This is early. The core works and is covered by tests, but a good part of the ro
 
 ## What it does today
 
-- A real web dashboard for managing your links: a Routes board (all your links, with open counts and live/expired/revoked status), a Compose screen with a sandboxed live preview, per-link analytics with a Traveler Map showing who opened what and for how long, and Team, Settings, and Account screens.
+- A real web dashboard for managing your links: a Routes board (all your links, with open counts and live/expired/revoked status), a Compose screen with a sandboxed live preview, per-link analytics with a Traveler Map showing who opened what and for how long, plus Collections, Team, Settings, and Account screens.
 - Multi-user accounts with roles and invitations. The first account to sign up becomes the owner. Everyone else gets in by invite only. Members share the same workspace and can see and manage its links based on their role.
 - Publish an artifact or raw HTML to a link, over the HTTP API or from inside Claude through the MCP server.
 - Edit in Claude and republish to the same link. The URL stays put and everyone who already has it keeps access. The link follows your latest version instead of freezing a copy.
 - Control who gets in: require an email, restrict to a company domain, set an expiry, or revoke a link when you are done.
 - See who opened a link, when, and how long they stayed, if you turn it on. Tracking is off by default and opt-in per link (`track: true` at publish). When it is on, the viewer tells the recipient the link records their visit, and you read the totals back from the dashboard or from `/api/stats`. Every open, viewer email, and dwell time stays on your server.
+- Bundle related links into a Collection with its own shareable page at `/c/<slug>`. Each link inside keeps its own gate.
+- Get notified when a link is first opened, by email or webhook, set per workspace in Settings.
 - Every artifact runs sandboxed. It loads in an isolated, opaque origin (an `allow-scripts` iframe with no same-origin access, backed by a `sandbox` directive on the bytes themselves), so its JavaScript stays interactive but cannot reach the cookies, session, or data on your domain. That holds even when someone opens the raw artifact URL directly, not only inside the viewer.
 - Self-hostable with zero external services. The store is a single SQLite database. Auth is handled by Better Auth. No third-party identity providers or managed databases are required.
 
@@ -76,7 +78,7 @@ PORT=3001 npm run dev
 
 Open `http://localhost:3000/setup` to create the owner account. The first account is the owner; further signups are invite-only. After setup, the dashboard is at `http://localhost:3000/`.
 
-From the dashboard you can compose new routes, copy viewer URLs, and watch open counts climb in real time. In Compose you can paste HTML or drop in an `.html` file (drag-and-drop or the Upload button), with a live sandboxed preview before you publish. For automation or MCP use, generate an API key from the Account screen or via `POST /api/keys` (the key value is returned once and not stored). Pass it as `Authorization: Bearer <key>` on any write endpoint.
+From the dashboard you can compose new routes, copy viewer URLs, and see who opened them and how often (the board reflects the latest each time you load it). In Compose you can paste HTML or drop in an `.html` file (drag-and-drop or the Upload button), with a live sandboxed preview before you publish. For automation or MCP use, generate an API key from the Account screen or via `POST /api/keys` (the key value is returned once and not stored). Pass it as `Authorization: Bearer <key>` on any write endpoint.
 
 To publish directly without the dashboard:
 
@@ -176,9 +178,11 @@ curl -X POST $URL/api/forget   -H "authorization: Bearer $TOKEN" -H "$CT" -d '{"
 
 `/api/access` (submit an email to a gated link), `/api/access/verify` (submit the emailed code), and `/api/track` (the viewer's open and close beacons) are unauthenticated by design, since recipients are not the owner. They are rate limited.
 
+API keys are minted at `POST /api/keys` and revoked at `POST /api/keys/revoke` (owner-scoped). Open-notification channels (email and webhook) are configured per workspace from the Settings screen.
+
 ## What's next
 
-Shipped so far: the web dashboard (Routes board, Compose with live preview, per-link analytics with Traveler Map, Team, Settings, Account), multi-user accounts with owner and invite-only member roles, the publish and republish loop, the sandboxed viewer, the MCP server, the gating layer (email, domain allowlist, expiry, revoke, email verification), and per-recipient tracking.
+Shipped so far: the web dashboard (Routes board, Compose with live preview, per-link analytics with Traveler Map, Collections, Team, Settings, Account), multi-user accounts with owner and invite-only member roles, the publish and republish loop, the sandboxed viewer, the MCP server, the gating layer (email, domain allowlist, expiry, revoke, email verification), per-recipient tracking, and open-notifications by email or webhook.
 
 Next, roughly in order: a hosted version for anyone who would rather not run a server, then the enterprise pieces (SSO, audit logs, data residency). Hosting comes first because it is what funds the rest.
 
