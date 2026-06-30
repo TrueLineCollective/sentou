@@ -3,7 +3,8 @@
 import { useActionState, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { publishAction, INITIAL_STATE } from "@/app/(dashboard)/compose/actions";
+import { publishAction } from "@/app/(dashboard)/compose/actions";
+import { INITIAL_STATE } from "@/app/(dashboard)/compose/state";
 
 const PREVIEW_DEBOUNCE_MS = 300;
 

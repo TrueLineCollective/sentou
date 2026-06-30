@@ -8,13 +8,7 @@ import { getDb } from "@/lib/db/client";
 import * as schema from "@/lib/db/schema";
 import { createLink, OPEN_GATE } from "@/lib/links";
 import { emailConfigured } from "@/lib/email";
-
-export type PublishState = {
-  slug: string | null;
-  error: string | null;
-};
-
-export const INITIAL_STATE: PublishState = { slug: null, error: null };
+import type { PublishState } from "./state";
 
 export async function publishAction(
   _prevState: PublishState,
@@ -30,6 +24,10 @@ export async function publishAction(
   const html = (formData.get("html") as string | null) ?? "";
   if (!html.trim()) {
     return { slug: null, error: "HTML payload is required." };
+  }
+  // Mirror /api/publish: cap at 5 MB to prevent outsized payloads.
+  if (Buffer.byteLength(html) > 5_000_000) {
+    return { slug: null, error: "HTML payload exceeds the 5 MB limit." };
   }
 
   // Expiry validation — mirror /api/publish exactly

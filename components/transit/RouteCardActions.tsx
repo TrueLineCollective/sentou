@@ -21,6 +21,7 @@ export function RouteCardActions({
   const router = useRouter();
   const [copied, setCopied] = useState(false);
   const [revoking, setRevoking] = useState(false);
+  const [confirmingRevoke, setConfirmingRevoke] = useState(false);
 
   async function handleCopy() {
     try {
@@ -33,7 +34,7 @@ export function RouteCardActions({
   }
 
   async function handleRevoke() {
-    if (!confirm("Revoke this route? Viewers will no longer be able to open it.")) return;
+    setConfirmingRevoke(false);
     setRevoking(true);
     try {
       const res = await fetch("/api/revoke", {
@@ -100,20 +101,49 @@ export function RouteCardActions({
       </button>
 
       {status === "live" && (
-        <button
-          type="button"
-          onClick={handleRevoke}
-          disabled={revoking}
-          className={cn(
-            btn,
-            "text-transit-muted/50 hover:text-red-400",
-            "border-transit-border/30 hover:border-red-400/40",
-            "disabled:opacity-40 disabled:cursor-not-allowed",
-          )}
-          aria-label="Revoke this route"
-        >
-          {revoking ? "..." : "Revoke"}
-        </button>
+        confirmingRevoke ? (
+          <>
+            <span className="text-[9px] font-mono text-transit-muted mr-0.5">
+              Revoke?
+            </span>
+            <button
+              type="button"
+              onClick={() => setConfirmingRevoke(false)}
+              className={cn(
+                btn,
+                "text-transit-muted border-transit-border/40 hover:text-transit-periwinkle hover:border-transit-border",
+              )}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleRevoke}
+              disabled={revoking}
+              className={cn(
+                btn,
+                "text-red-400 border-red-400/40 hover:border-red-400",
+                "disabled:opacity-40 disabled:cursor-not-allowed",
+              )}
+              aria-label="Confirm revoke this route"
+            >
+              {revoking ? "..." : "Confirm"}
+            </button>
+          </>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setConfirmingRevoke(true)}
+            className={cn(
+              btn,
+              "text-transit-muted/50 hover:text-red-400",
+              "border-transit-border/30 hover:border-red-400/40",
+            )}
+            aria-label="Revoke this route"
+          >
+            Revoke
+          </button>
+        )
       )}
     </div>
   );
