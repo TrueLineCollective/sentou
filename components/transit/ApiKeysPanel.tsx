@@ -45,7 +45,7 @@ function KeyCallout({
     <div
       className="mx-8 mt-0 mb-0 border border-transit-mint/30 bg-transit-mint/[0.04] rounded-lg p-5"
       role="alert"
-      aria-label="New API key — copy it now"
+      aria-label="New API key, copy it now"
     >
       {/* Route line — signals "this key is live and departing" */}
       <div className="flex items-center gap-2 mb-3" aria-hidden="true">
@@ -55,10 +55,10 @@ function KeyCallout({
       </div>
 
       <p className="text-[9px] font-mono tracking-[0.3em] uppercase text-transit-mint mb-2">
-        Key minted — copy now
+        Key minted, copy now
       </p>
       <p className="text-[11px] text-transit-muted mb-4">
-        This is shown exactly once. Store it somewhere safe — it cannot be recovered.
+        This is shown exactly once. Store it somewhere safe. It cannot be recovered.
       </p>
 
       <div className="flex items-center gap-3">
@@ -79,7 +79,7 @@ function KeyCallout({
         onClick={onDismiss}
         className="mt-4 text-[10px] font-mono tracking-[0.2em] uppercase text-transit-muted hover:text-transit-periwinkle transition-colors"
       >
-        I have saved it — dismiss
+        I have saved it, dismiss
       </button>
     </div>
   );
@@ -133,7 +133,7 @@ function KeyRow({
 
       {/* Transit route line */}
       <div className="flex items-center mb-4" aria-hidden="true">
-        <div className="w-3 h-3 rounded-full border-2 border-transit-canvas flex-shrink-0 z-10" style={{ borderColor: "#565f89" }} />
+        <div className="w-3 h-3 rounded-full border-2 border-transit-canvas flex-shrink-0 z-10" style={{ borderColor: "#828bbf" }} />
         <div className="flex-1 h-[3px]" style={{ background: lineBg }} />
         <div className={`w-3.5 h-3.5 rounded-full border-2 bg-transit-canvas flex-shrink-0 z-10 ${dotClass}`} />
       </div>

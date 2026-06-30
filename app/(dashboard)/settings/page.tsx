@@ -192,7 +192,7 @@ export default async function SettingsPage() {
             Notifications
           </p>
           <p className="text-[11px] text-transit-muted mt-1 font-mono">
-            Alerts fire once per viewer — only on a viewer&apos;s first open of each link.
+            Alerts fire once per viewer, only on their first open of each link.
           </p>
         </div>
         <NotificationPrefsPanel initialPrefs={notifPrefs} />
