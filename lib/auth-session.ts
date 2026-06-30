@@ -32,7 +32,7 @@ export function isAdmin(actor: Actor): boolean {
 // then id as tiebreaker). Defaults to "member" if the user has no membership.
 // Using the workspace org prevents a user from gaining elevated rights by
 // joining or creating a second org.
-function resolveRole(
+export function resolveRole(
   db: BetterSQLite3Database<typeof schema>,
   userId: string,
 ): string {
