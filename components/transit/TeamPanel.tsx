@@ -298,7 +298,8 @@ function InviteForm({ organizationId, onSuccess }: InviteFormProps) {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const trimmed = email.trim();
+    // Lowercase + trim so the invite matches auth.ts's eq(invitation.email, user.email.toLowerCase()) gate.
+    const trimmed = email.trim().toLowerCase();
     if (!trimmed) return;
     setError(null);
     setLoading(true);
