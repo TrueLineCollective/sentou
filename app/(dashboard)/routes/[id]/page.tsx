@@ -296,7 +296,7 @@ function VersionTimeline({
 
 function TrackingOffState({ title }: { title: string }) {
   return (
-    <div className="flex flex-col items-center justify-center min-h-[55vh] px-8">
+    <div className="flex flex-col items-center justify-center min-h-[55vh] px-4 md:px-8">
       <div className="w-72 mb-8" aria-hidden="true">
         <svg
           width="100%"
@@ -348,7 +348,7 @@ function TrackingOffState({ title }: { title: string }) {
 
 function NoTravelersState() {
   return (
-    <div className="flex flex-col items-center justify-center py-20 px-8">
+    <div className="flex flex-col items-center justify-center py-20 px-4 md:px-8">
       <div className="w-64 mb-6" aria-hidden="true">
         <svg
           width="100%"
@@ -491,7 +491,7 @@ export default async function LinkAnalyticsPage({
   return (
     <div className="min-h-dvh">
       {/* Sticky header */}
-      <header className="sticky top-0 z-20 bg-transit-canvas/95 backdrop-blur-sm border-b border-transit-border px-8 py-5">
+      <header className="sticky top-0 z-20 bg-transit-canvas/95 backdrop-blur-sm border-b border-transit-border px-4 md:px-8 py-5">
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 mb-3">
           <Link
@@ -548,7 +548,7 @@ export default async function LinkAnalyticsPage({
       {!link.track ? (
         <TrackingOffState title={title} />
       ) : (
-        <div className="px-8 py-8 space-y-10">
+        <div className="px-4 md:px-8 py-8 space-y-10">
           {/* Signal — metric tiles */}
           <section aria-label="Summary metrics">
             <div className="flex items-center gap-2.5 mb-4">
@@ -560,7 +560,7 @@ export default async function LinkAnalyticsPage({
                 aria-hidden="true"
               />
             </div>
-            <div className="grid grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <MetricTile label="Total Opens" value={String(totalOpens)} sub="all-time" />
               <MetricTile
                 label="Unique Travelers"
@@ -584,7 +584,7 @@ export default async function LinkAnalyticsPage({
           {totalOpens === 0 ? (
             <NoTravelersState />
           ) : (
-            <div className="grid grid-cols-[1fr_260px] gap-10 items-start">
+            <div className="flex flex-col md:grid md:grid-cols-[1fr_260px] gap-10 items-start">
               {/* Traveler map */}
               <section aria-label="Traveler journey">
                 <div className="flex items-center gap-2.5 mb-6">
