@@ -46,4 +46,3 @@ next-env.d.ts
 
 # local-only working files, never published (scratch notes, planning, scratch dirs)
 .private/
-.claude/
