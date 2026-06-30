@@ -26,6 +26,10 @@ ENV SENTOU_DB=/data/sentou.db
 COPY --from=build /app/.next/standalone ./
 COPY --from=build /app/.next/static ./.next/static
 COPY --from=build /app/public ./public
+# Drizzle migrations are read from disk at boot by the instrumentation hook (migrate()).
+# Next's standalone tracer does not bundle them (they are read by path, not imported), so
+# copy the folder explicitly or the server crashes on startup with "Can't find meta/_journal.json".
+COPY --from=build /app/lib/db/migrations ./lib/db/migrations
 
 # Run unprivileged and let that user own the data dir so the runtime can write the database.
 RUN groupadd --system --gid 1001 sentou \
