@@ -41,12 +41,9 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# local file store
+# local SQLite database
 .sentou/
 
-# local-only working files
-
-
-
-
-
+# local-only working files, never published (scratch notes, planning, scratch dirs)
+.private/
+.claude/
