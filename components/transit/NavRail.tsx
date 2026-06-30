@@ -33,7 +33,7 @@ export function NavRail() {
           {NAV_ITEMS.map((item) => {
             const active =
               item.href === "/"
-                ? pathname === "/"
+                ? pathname === "/" || pathname.startsWith("/routes")
                 : pathname.startsWith(item.href);
 
             return (
