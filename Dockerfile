@@ -1,6 +1,6 @@
 # Multi-stage build producing a small standalone image. Node 22 is within Next 16's support range
 # (floor 20.9). The runner copies only the standalone server + static assets, runs as a non-root
-# user, and owns a writable /data dir for the file store.
+# user, and owns a writable /data dir for the SQLite database.
 
 FROM node:22-bookworm-slim AS deps
 WORKDIR /app
@@ -19,15 +19,15 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
-# The file store lives on a mounted volume so data survives container restarts.
-ENV SENTOU_DB=/data/db.json
+# The SQLite database lives on a mounted volume so data survives container restarts.
+ENV SENTOU_DB=/data/sentou.db
 
 # Standalone server, plus the static assets and public dir it does not copy itself.
 COPY --from=build /app/.next/standalone ./
 COPY --from=build /app/.next/static ./.next/static
 COPY --from=build /app/public ./public
 
-# Run unprivileged and let that user own the data dir so the runtime can write the store.
+# Run unprivileged and let that user own the data dir so the runtime can write the database.
 RUN groupadd --system --gid 1001 sentou \
   && useradd --system --uid 1001 --gid sentou sentou \
   && mkdir -p /data \

@@ -34,10 +34,10 @@ npm run build     # production build
 
 ## Project layout
 
-- `app/` — Next.js App Router. Routes under `app/api/*` are the HTTP API; `app/v/[slug]` is the viewer and `app/artifact/[slug]` serves the sandboxed bytes.
-- `lib/` — the core: links/store, the sealed-token and tracking-token modules, access evaluation, stats aggregation. Most logic and most tests live here.
-- `mcp/` — the MCP server and client that let you publish from a Claude session.
-- `AGENTS.md` — orientation for contributors and coding agents (stack, the Next 16 caveat, the security-critical files).
+- `app/`: Next.js App Router. Routes under `app/api/*` are the HTTP API; `app/(dashboard)` is the owner/team web UI; `app/v/[slug]` is the viewer and `app/artifact/[slug]` serves the sandboxed bytes.
+- `lib/`: the core: the SQLite store and schema, auth and session resolution, the sealed-token and tracking-token modules, access evaluation, stats aggregation. Most logic and most tests live here.
+- `mcp/`: the MCP server and client that let you publish from a Claude session.
+- `AGENTS.md`: orientation for contributors and coding agents (stack, the Next 16 caveat, the security-critical files).
 
 ## How we work
 
