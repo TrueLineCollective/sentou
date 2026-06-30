@@ -1,3 +1,6 @@
+// LEGACY: the JSON file store. The production store is SQLite (lib/store-sqlite.ts), wired in
+// lib/server-store.ts. This file is kept only for the one-time JSON->SQLite import path
+// (lib/db/migrate-from-json.ts) and is not on any request-serving runtime path.
 import { readFileSync, writeFileSync, mkdirSync, existsSync, renameSync } from "node:fs";
 import { dirname } from "node:path";
 
