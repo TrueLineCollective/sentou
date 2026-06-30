@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -7,10 +7,10 @@ import { getStore } from "@/lib/server-store";
 import { __resetRateLimits } from "@/lib/rate-limit";
 
 beforeEach(() => {
-  process.env.SENTOU_DB = path.join(mkdtempSync(path.join(tmpdir(), "sentou-")), "db.json");
+  process.env.SENTOU_DB = path.join(mkdtempSync(path.join(tmpdir(), "sentou-")), "t.db");
   __resetRateLimits();
 });
-afterEach(() => { delete process.env.SENTOU_OWNER_TOKEN; });
+afterEach(() => { vi.unstubAllEnvs(); vi.resetModules(); });
 
 async function tracked() {
   const link = await createLink(getStore(), "<h1>x</h1>", undefined, true);
@@ -49,8 +49,8 @@ describe("/api/forget", () => {
     expect((await POST(new Request("http://t/api/forget", { method: "POST", body: JSON.stringify({ id: "nope" }) }))).status).toBe(404);
   });
 
-  it("401s without the bearer when an owner token is configured", async () => {
-    process.env.SENTOU_OWNER_TOKEN = "owner-secret";
+  it("401s in production when no actor is present", async () => {
+    vi.stubEnv("NODE_ENV", "production");
     const link = await tracked();
     const { POST } = await import("@/app/api/forget/route");
     const res = await POST(new Request("http://t/api/forget", { method: "POST", body: JSON.stringify({ id: link.id }) }));
