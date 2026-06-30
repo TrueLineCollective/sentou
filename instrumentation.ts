@@ -14,11 +14,49 @@ export async function register() {
   // auth handler bypasses getStore()).
   const { migrate } = await import("drizzle-orm/better-sqlite3/migrator");
   const { getDb } = await import("@/lib/db/client");
-  migrate(getDb(), { migrationsFolder: "lib/db/migrations" });
+
+  // Preflight: in a standalone/Docker build the migrations folder is copied by the Dockerfile
+  // (it is read by path at runtime, not bundled by the tracer). If it is missing, fail with an
+  // actionable message instead of drizzle's cryptic "Can't find meta/_journal.json".
+  const { existsSync } = await import("node:fs");
+  const migrationsFolder = "lib/db/migrations";
+  if (!existsSync(`${migrationsFolder}/meta/_journal.json`)) {
+    throw new Error(
+      `[sentou] DB migrations not found at "${migrationsFolder}" (cwd=${process.cwd()}). ` +
+        "For a standalone/Docker build, ensure lib/db/migrations is copied into the runtime image (see Dockerfile).",
+    );
+  }
+  migrate(getDb(), { migrationsFolder });
+
+  const warn = (m: string) => console.warn(`[sentou] ${m}`);
+
+  // Unclaimed-owner warning fires on any exposed OR production instance — the same posture that
+  // makes the owner API fail closed — so an exposed dev/tunnel operator is warned too, not only
+  // a NODE_ENV=production one. Wrapped in try/catch so an uninitialized DB does not crash boot.
+  const { exposedDeploy } = await import("@/lib/owner");
+  const exposed = exposedDeploy();
+  if (exposed || process.env.NODE_ENV === "production") {
+    try {
+      const db = getDb();
+      const { user } = await import("@/lib/db/schema");
+      const firstUser = db.select({ id: user.id }).from(user).limit(1).get();
+      if (!firstUser) {
+        warn(
+          exposed
+            ? "SECURITY: this instance is reachable from outside localhost with NO owner account yet. " +
+                "The first visitor to /setup will claim ownership. Complete /setup now, before sharing the URL."
+            : "No owner account yet; sign up the first owner, then create an API key " +
+                "for automation or MCP use via POST /api/keys.",
+        );
+      }
+    } catch {
+      // DB or table not ready at boot; skip the account check.
+    }
+  }
 
   if (process.env.NODE_ENV !== "production") return;
 
-  const warn = (m: string) => console.warn(`[sentou] ${m}`);
+  // Production-only configuration warnings.
   if (!process.env.SENTOU_BASE_URL) {
     warn("SENTOU_BASE_URL is not set; generated links will point at http://localhost:3000.");
   }
@@ -27,30 +65,5 @@ export async function register() {
       "SENTOU_SECRET is not set; a random per-process key will be used " +
         "(session and access cookies will not survive restarts).",
     );
-  }
-  // Warn when no owner account exists yet. On a production or internet-exposed instance
-  // with no account, the owner API endpoints will refuse all requests until one is created.
-  // Wrapped in try/catch so an uninitialized or missing DB does not crash boot.
-  try {
-    const db = getDb();
-    const { user } = await import("@/lib/db/schema");
-    const { exposedDeploy } = await import("@/lib/owner");
-    const firstUser = db.select({ id: user.id }).from(user).limit(1).get();
-    if (!firstUser) {
-      if (exposedDeploy()) {
-        // Security: until the owner is claimed, the first visitor to /setup becomes owner.
-        warn(
-          "SECURITY: this instance is internet-exposed with NO owner account yet. The first " +
-            "visitor to /setup will claim ownership. Complete /setup now, before sharing the URL.",
-        );
-      } else {
-        warn(
-          "No owner account yet; sign up the first owner, then create an API key " +
-            "for automation or MCP use via POST /api/keys.",
-        );
-      }
-    }
-  } catch {
-    // DB or table not ready at boot; skip the account check.
   }
 }
