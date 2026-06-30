@@ -48,3 +48,20 @@ export const notificationPrefs = sqliteTable("notification_prefs", {
   emailOnOpen: integer("email_on_open", { mode: "boolean" }).notNull().default(false),
   webhookUrl: text("webhook_url"),
 });
+
+// Collections: named bundles of an owner's links under one shareable route.
+export const collections = sqliteTable("collections", {
+  id: text("id").primaryKey(),
+  slug: text("slug").notNull().unique(),
+  ownerUserId: text("owner_user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  createdAt: text("created_at").notNull(),
+});
+
+// Join table: which links belong to which collection, and their display order.
+export const collectionLinks = sqliteTable("collection_links", {
+  id: text("id").primaryKey(),
+  collectionId: text("collection_id").notNull().references(() => collections.id, { onDelete: "cascade" }),
+  linkId: text("link_id").notNull().references(() => links.id, { onDelete: "cascade" }),
+  position: integer("position").notNull().default(0),
+});
