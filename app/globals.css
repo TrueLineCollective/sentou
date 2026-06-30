@@ -1,15 +1,88 @@
 @import "tailwindcss";
 
+/* -------------------------------------------------------------------------
+   Public viewer pages: light defaults (unchanged)
+   ------------------------------------------------------------------------- */
 :root {
   --background: #ffffff;
   --foreground: #171717;
 }
 
+/* -------------------------------------------------------------------------
+   Transit design tokens — shadcn CSS vars mapped to the Transit dark brand.
+   Applied at layout/page level, NOT on body, so public viewer pages are
+   unaffected.
+   ------------------------------------------------------------------------- */
+.transit-canvas {
+  --background: #1a1b26;
+  --foreground: #c0caf5;
+
+  /* Transit palette */
+  --transit-canvas: #1a1b26;
+  --transit-surface: #1f2035;
+  --transit-elevated: #252640;
+  --transit-periwinkle: #c0caf5;
+  --transit-mint: #7ee787;
+  --transit-muted: #565f89;
+  --transit-border: #292e42;
+
+  /* shadcn primitives wired to Transit */
+  --card: var(--transit-elevated);
+  --card-foreground: var(--transit-periwinkle);
+  --popover: var(--transit-elevated);
+  --popover-foreground: var(--transit-periwinkle);
+  --primary: var(--transit-mint);
+  --primary-foreground: #1a1b26;
+  --secondary: var(--transit-surface);
+  --secondary-foreground: var(--transit-periwinkle);
+  --muted: var(--transit-surface);
+  --muted-foreground: var(--transit-muted);
+  --accent: var(--transit-elevated);
+  --accent-foreground: var(--transit-periwinkle);
+  --destructive: #f7768e;
+  --destructive-foreground: #1a1b26;
+  --border: var(--transit-border);
+  --input: var(--transit-border);
+  --ring: var(--transit-mint);
+  --radius: 0.5rem;
+}
+
+/* -------------------------------------------------------------------------
+   Tailwind v4 theme — color tokens available as bg-*, text-*, border-*, etc.
+   ------------------------------------------------------------------------- */
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+
+  /* Transit palette utilities */
+  --color-transit-canvas: #1a1b26;
+  --color-transit-surface: #1f2035;
+  --color-transit-elevated: #252640;
+  --color-transit-periwinkle: #c0caf5;
+  --color-transit-mint: #7ee787;
+  --color-transit-muted: #565f89;
+  --color-transit-border: #292e42;
+
+  /* shadcn CSS var pass-through */
+  --color-card: var(--card, #252640);
+  --color-card-foreground: var(--card-foreground, #c0caf5);
+  --color-popover: var(--popover, #252640);
+  --color-popover-foreground: var(--popover-foreground, #c0caf5);
+  --color-primary: var(--primary, #7ee787);
+  --color-primary-foreground: var(--primary-foreground, #1a1b26);
+  --color-secondary: var(--secondary, #1f2035);
+  --color-secondary-foreground: var(--secondary-foreground, #c0caf5);
+  --color-muted: var(--muted, #1f2035);
+  --color-muted-foreground: var(--muted-foreground, #565f89);
+  --color-accent: var(--accent, #252640);
+  --color-accent-foreground: var(--accent-foreground, #c0caf5);
+  --color-destructive: var(--destructive, #f7768e);
+  --color-destructive-foreground: var(--destructive-foreground, #1a1b26);
+  --color-border: var(--border, #292e42);
+  --color-input: var(--input, #292e42);
+  --color-ring: var(--ring, #7ee787);
 }
 
 @media (prefers-color-scheme: dark) {
