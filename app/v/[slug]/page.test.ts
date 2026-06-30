@@ -21,13 +21,83 @@ beforeEach(() => {
   mockVerifyCookie = null;
 });
 
-// main's children are siblings [maybe-notice, iframe, maybe-script]; flatten and pick by type.
+// ---------------------------------------------------------------------------
+// Shallow helpers — viewer state only.
+//
+// main's direct children are the only siblings that matter here:
+//   [maybe-notice-div, iframe, maybe-script]
+// Keeping these SHALLOW is itself the assertion: a div present as a direct
+// sibling of iframe proves a disclosure bar rendered; undefined proves it
+// didn't.  A deep search would make byType(el, "div") return the grid divs
+// from the gate states, breaking the viewer invariant.
+// ---------------------------------------------------------------------------
 const kidsOf = (el: { props: { children: unknown } }) => {
   const k = el.props.children;
   return Array.isArray(k) ? k : [k];
 };
 const byType = (el: { props: { children: unknown } }, type: string) =>
   kidsOf(el).find((c) => c && (c as { type?: string }).type === type) as { type: string; props: Record<string, unknown> } | undefined;
+
+// ---------------------------------------------------------------------------
+// Deep helpers — gate form states.
+//
+// The Transit restyle nests the <form> inside the 62/38 grid layout.  These
+// recursive traversals find the form and its inputs wherever they live in the
+// tree without caring about the surrounding structure.
+//
+// Assertions themselves are UNCHANGED: the form action, method, input names,
+// types, and values are all still verified.  Only the structural assumption
+// (form is a direct child of main) is relaxed.
+// ---------------------------------------------------------------------------
+
+// Find the first element with the given string type anywhere in the tree.
+// Function components (type is a function, not a string) are treated as leaves
+// whose interior is not visible here — the server render returns the unexpanded
+// element, so only string-typed JSX elements are traversed.
+const findFirstByType = (
+  node: unknown,
+  type: string,
+): { type: string; props: Record<string, unknown> } | undefined => {
+  if (!node || typeof node !== "object") return undefined;
+  const n = node as { type?: unknown; props?: { children?: unknown } };
+  if (n.type === type) return n as { type: string; props: Record<string, unknown> };
+  if (!n.props?.children) return undefined;
+  const kids = Array.isArray(n.props.children) ? n.props.children : [n.props.children];
+  for (const kid of kids) {
+    const found = findFirstByType(kid, type);
+    if (found) return found;
+  }
+  return undefined;
+};
+
+// Collect all elements with the given string type anywhere in the tree.
+const findAllByType = (
+  node: unknown,
+  type: string,
+): { type: string; props: Record<string, unknown> }[] => {
+  if (!node || typeof node !== "object") return [];
+  const n = node as { type?: unknown; props?: { children?: unknown } };
+  const results: { type: string; props: Record<string, unknown> }[] = [];
+  if (n.type === type) results.push(n as { type: string; props: Record<string, unknown> });
+  if (n.props?.children) {
+    const kids = Array.isArray(n.props.children) ? n.props.children : [n.props.children];
+    for (const kid of kids) {
+      results.push(...findAllByType(kid, type));
+    }
+  }
+  return results;
+};
+
+// Pull the <form> from anywhere in the rendered tree.
+const formOf = (el: { props: { children: unknown } }) =>
+  findFirstByType(el, "form") as {
+    type: string;
+    props: { method: string; action: string; children: unknown };
+  };
+
+// Collect all <input> elements from anywhere inside the form.
+const inputsOf = (form: { type: string; props: { method: string; action: string; children: unknown } }) =>
+  findAllByType(form, "input") as { props: { type?: string; name?: string; value?: string } }[];
 
 describe("viewer page", () => {
   it("renders the artifact in an allow-scripts sandbox with no same-origin escape", async () => {
@@ -68,18 +138,6 @@ describe("viewer page", () => {
   });
 
   const formGate = { requireEmail: true, allowedDomains: null, expiresAt: null, revoked: false };
-  // main > [h1, form, ...]; pull the <form> and its <input> children out of the tree.
-  const formOf = (el: { props: { children: unknown } }) => {
-    const kids = el.props.children;
-    const arr = Array.isArray(kids) ? kids : [kids];
-    return arr.find((c) => c && (c as { type?: string }).type === "form") as {
-      props: { method: string; action: string; children: unknown[] };
-    };
-  };
-  const inputsOf = (form: { props: { children: unknown[] } }) =>
-    form.props.children.filter((c) => c && (c as { type?: string }).type === "input") as {
-      props: { type?: string; name?: string; value?: string };
-    }[];
 
   it("renders a single email form posting to /api/access for a gated link without verification", async () => {
     const link = await createLink(getStore(), "<h1>x</h1>", formGate);
