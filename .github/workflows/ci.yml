@@ -30,3 +30,23 @@ jobs:
       # Verify the self-host image actually builds (the headline "runs on your own
       # infrastructure" path), so a broken Dockerfile fails CI instead of a user's deploy.
       - run: docker build -t sentou:ci .
+      # Boot it for real. A build-only check misses runtime failures: the native
+      # better-sqlite3 binary in the standalone trace, startup migrations, and the
+      # non-root user writing the SQLite file on the /data volume. Confirm the
+      # container serves the first-owner setup screen.
+      - name: Boot smoke
+        run: |
+          docker run -d --name sentou-ci -p 3000:3000 \
+            -e SENTOU_SECRET=$(openssl rand -hex 32) \
+            -e SENTOU_BASE_URL=http://localhost:3000 \
+            -v sentou-ci-data:/data \
+            sentou:ci
+          for i in $(seq 1 30); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:3000/setup || true)
+            if [ "$code" = "200" ]; then echo "setup screen served (200)"; break; fi
+            if [ "$i" = "30" ]; then echo "container never served /setup"; docker logs sentou-ci; exit 1; fi
+            sleep 2
+          done
+          # The SQLite database must have been created on the mounted volume by the non-root user.
+          docker exec sentou-ci sh -c 'test -f /data/sentou.db' || { echo "SENTOU_DB not created on volume"; docker logs sentou-ci; exit 1; }
+          docker rm -f sentou-ci
