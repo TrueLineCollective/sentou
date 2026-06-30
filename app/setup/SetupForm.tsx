@@ -28,20 +28,23 @@ function TransitGrid() {
 }
 
 // ---------------------------------------------------------------------------
-// RouteLine — the hero spine of the composition.
+// RouteLineHero — the hero composition element.
 //
-// A bold vertical periwinkle-to-mint gradient line connects two station dots:
-//   origin  (periwinkle, top)   — "You are here"
-//   destination (mint, bottom)  — "Your workspace"
+// A bold horizontal periwinkle-to-mint gradient line spans the full content
+// width at ~62%.  The origin dot (periwinkle) is at the far left.  The
+// destination dot (mint) sits at exactly the 62% mark — which is also the
+// left edge of the form column below it.  The route literally terminates
+// at the form: the user's eye follows the line to the destination dot and
+// finds the first form field directly below.
 //
-// GSAP draws the line from origin to destination on mount.
-// Resting state (reduced-motion, hidden tab): line is fully visible by default
-// because no strokeDasharray is set in SVG markup.  GSAP only applies the dash
-// when it runs the draw-in, and snaps to progress(1) if the tab is hidden mid-draw.
-// A `data-route-ready` sentinel on <html> fires when the animation is complete
-// so Playwright can wait for it before screenshotting.
+// gradientUnits="userSpaceOnUse" is required: the default objectBoundingBox
+// degenerates on a zero-height horizontal line and produces an invisible stroke.
+//
+// GSAP draws left-to-right on mount (1.5s); destination dot fades in on arrival.
+// Resting state (reduced-motion, hidden tab): fully drawn (no dasharray in markup).
+// Sentinel data-route-ready="1" on <html> fires when the animation is done.
 // ---------------------------------------------------------------------------
-function RouteLine() {
+function RouteLineHero() {
   const lineRef = useRef<SVGPathElement>(null);
   const destRingRef = useRef<SVGCircleElement>(null);
   const destDotRef = useRef<SVGCircleElement>(null);
@@ -55,13 +58,11 @@ function RouteLine() {
     const markReady = () =>
       document.documentElement.setAttribute("data-route-ready", "1");
 
-    // Reduced-motion: everything stays visible, sentinel fires immediately.
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
       markReady();
       return;
     }
 
-    // Hidden tab: leave SVG at its default (fully drawn) state, fire sentinel.
     if (document.hidden) {
       markReady();
       return;
@@ -75,26 +76,21 @@ function RouteLine() {
 
       const length = line.getTotalLength();
 
-      // Hide line and destination dots; origin dot is always visible.
+      // Hide the route line and destination; origin is always visible.
       gsap.set(line, { strokeDasharray: length, strokeDashoffset: length });
       gsap.set([destRing, destDot], { opacity: 0 });
 
       const tl = gsap.timeline();
       tl
-        // Draw line from origin to destination
         .to(line, {
           strokeDashoffset: 0,
           duration: 1.5,
           ease: "power3.inOut",
         })
-        // Destination ring arrives
-        .to(destRing, { opacity: 1, duration: 0.3, ease: "power2.out" }, "-=0.15")
-        // Inner dot fills in
+        .to(destRing, { opacity: 1, duration: 0.3, ease: "power2.out" }, "-=0.1")
         .to(destDot, { opacity: 1, duration: 0.25, ease: "power2.out" }, "-=0.2")
-        // Signal screenshot-readiness
         .add(markReady);
 
-      // If the tab hides mid-draw, snap to finished state immediately.
       const onVisibility = () => {
         if (document.hidden) {
           tl.progress(1);
@@ -117,27 +113,25 @@ function RouteLine() {
 
   return (
     <svg
-      width="60"
-      height="580"
-      viewBox="0 0 60 580"
+      width="100%"
+      height="80"
+      viewBox="0 0 1200 80"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       aria-hidden="true"
-      className="flex-shrink-0"
     >
       <defs>
         {/*
-         * gradientUnits="userSpaceOnUse" is mandatory here.
-         * The path is a pure vertical line (zero-width bounding box).
-         * The default objectBoundingBox degenrates on zero-width paths and
-         * renders an invisible stroke.  userSpaceOnUse fixes that.
+         * userSpaceOnUse: gradient vector is specified in SVG user coordinates.
+         * objectBoundingBox (the default) degenerates when the path height = 0
+         * (a horizontal line) and makes the stroke invisible.
          */}
         <linearGradient
-          id="vRouteGrad"
-          x1="30"
-          y1="30"
-          x2="30"
-          y2="548"
+          id="hRouteGrad"
+          x1="20"
+          y1="40"
+          x2="746"
+          y2="40"
           gradientUnits="userSpaceOnUse"
         >
           <stop offset="0%" stopColor="#c0caf5" />
@@ -145,15 +139,39 @@ function RouteLine() {
         </linearGradient>
       </defs>
 
-      {/* Origin station — periwinkle. Always visible: you start here. */}
-      <circle cx="30" cy="30" r="13" fill="#1a1b26" stroke="#c0caf5" strokeWidth="4" />
-      <circle cx="30" cy="30" r="6" fill="#c0caf5" />
+      {/* Station labels above line */}
+      <text
+        x="20"
+        y="16"
+        fontSize={9}
+        fill="#565f89"
+        fontFamily="monospace"
+        letterSpacing={2}
+        textAnchor="middle"
+      >
+        ORIGIN
+      </text>
+      <text
+        x="746"
+        y="16"
+        fontSize={9}
+        fill="#565f89"
+        fontFamily="monospace"
+        letterSpacing={2}
+        textAnchor="middle"
+      >
+        DESTINATION
+      </text>
 
-      {/* Route line — GSAP draws it top-to-bottom; fully visible without JS. */}
+      {/* Origin station — periwinkle. Always visible: you start here. */}
+      <circle cx="20" cy="40" r="13" fill="#1a1b26" stroke="#c0caf5" strokeWidth="4" />
+      <circle cx="20" cy="40" r="6" fill="#c0caf5" />
+
+      {/* Route line — GSAP draws left-to-right; fully visible without JS. */}
       <path
         ref={lineRef}
-        d="M30,30 L30,548"
-        stroke="url(#vRouteGrad)"
+        d="M20,40 L746,40"
+        stroke="url(#hRouteGrad)"
         strokeWidth="7"
         strokeLinecap="round"
       />
@@ -161,14 +179,28 @@ function RouteLine() {
       {/* Destination station — mint. Fades in when line arrives. */}
       <circle
         ref={destRingRef}
-        cx="30"
-        cy="548"
+        cx="746"
+        cy="40"
         r="15"
         fill="#1a1b26"
         stroke="#7ee787"
         strokeWidth="4"
       />
-      <circle ref={destDotRef} cx="30" cy="548" r="7" fill="#7ee787" />
+      <circle ref={destDotRef} cx="746" cy="40" r="7" fill="#7ee787" />
+
+      {/* Station names below line */}
+      <text
+        x="20"
+        y="68"
+        fontSize={11}
+        fill="#c0caf5"
+        fontFamily="monospace"
+        textAnchor="middle"
+        fontWeight="bold"
+      >
+        YOU
+      </text>
+      {/* No label under destination: the form IS the destination. */}
     </svg>
   );
 }
@@ -191,12 +223,10 @@ export function SetupForm() {
 
     try {
       const result = await authClient.signUp.email({ name, email, password });
-
       if (result.error) {
         setError(result.error.message ?? "Sign up failed. Try again.");
         return;
       }
-
       router.push("/");
     } catch {
       setError("Something went wrong. Please try again.");
@@ -206,11 +236,11 @@ export function SetupForm() {
   }
 
   return (
-    <div className="transit-canvas relative min-h-screen bg-transit-canvas text-transit-periwinkle overflow-hidden">
+    <div className="transit-canvas relative min-h-screen flex flex-col bg-transit-canvas text-transit-periwinkle overflow-hidden">
       <TransitGrid />
 
       {/* ── Top nav ──────────────────────────────────────────────────────── */}
-      <nav className="relative z-10 flex items-center justify-between px-12 pt-8 pb-6">
+      <nav className="relative z-10 flex items-center justify-between px-12 pt-8 pb-4">
         <Wordmark size="md" />
         <span className="text-[10px] font-mono tracking-[0.28em] uppercase text-transit-muted">
           Owner Setup
@@ -218,63 +248,61 @@ export function SetupForm() {
       </nav>
 
       {/* ── Main composition ─────────────────────────────────────────────── */}
-      <div className="relative z-10 grid grid-cols-[38%_62%]" style={{ minHeight: "calc(100vh - 80px)" }}>
-
-        {/* ── Left column: transit route-map zone ──────────────────────── */}
-        <div className="flex flex-col px-12 pt-2 pb-10 border-r border-transit-border">
-
+      {/*
+       * CSS grid: two columns (62% / 38%), three rows (heading / route / form).
+       * The destination dot in the route line SVG sits at exactly 62% of the
+       * SVG width — the same boundary as the column split — so it lives
+       * immediately above the first form field's label.
+       */}
+      <div
+        className="relative z-10 flex-1"
+        style={{
+          display: "grid",
+          gridTemplateColumns: "62% 38%",
+          gridTemplateRows: "auto auto 1fr",
+          paddingLeft: "3rem",
+          paddingRight: "3rem",
+          paddingBottom: "3rem",
+        }}
+      >
+        {/* ── Row 1, Col 1: Heading + editorial copy ────────────────────── */}
+        <div className="pt-8 pb-6 pr-16">
           {/* Line identifier */}
-          <div className="mb-8 flex items-center gap-3">
+          <div className="flex items-center gap-3 mb-5">
             <span className="text-[9px] font-mono tracking-[0.35em] uppercase text-transit-muted">
               Line 01
             </span>
             <span className="flex-1 border-t border-transit-border" />
           </div>
 
-          {/* Origin label above the route line */}
-          <div className="mb-5">
-            <span className="text-[9px] font-mono tracking-[0.3em] uppercase text-transit-muted">
-              Origin
-            </span>
-            <p
-              className="text-xl font-black text-transit-periwinkle mt-0.5 leading-tight"
-              style={{ fontFamily: "var(--font-inter)" }}
-            >
-              You
-            </p>
-          </div>
+          <h1
+            className="text-[clamp(2.4rem,3.2vw,3.75rem)] font-black leading-[1.05] text-transit-periwinkle"
+            style={{ fontFamily: "var(--font-inter)" }}
+          >
+            Claim your
+            <br />
+            <span className="text-transit-mint">instance.</span>
+          </h1>
 
-          {/* Route line + alongside content */}
-          <div className="flex gap-8">
-            <RouteLine />
+          <p className="text-transit-muted text-sm leading-relaxed mt-4 max-w-xs">
+            First account claims the workspace. Your artifacts, your rules.
+          </p>
+        </div>
 
-            {/* Content aligned with station positions */}
-            <div className="flex flex-col justify-between" style={{ height: 580 }}>
-              {/* Near origin: editorial copy */}
-              <div className="pt-1">
-                <p className="text-transit-muted text-sm leading-relaxed max-w-[240px]">
-                  First account claims the workspace. Your artifacts, your rules.
-                </p>
-              </div>
+        {/* ── Row 1, Col 2: Empty — space above form ────────────────────── */}
+        <div />
 
-              {/* Near destination: workspace label */}
-              <div className="pb-1">
-                <span className="text-[9px] font-mono tracking-[0.3em] uppercase text-transit-muted">
-                  Destination
-                </span>
-                <p
-                  className="text-xl font-black text-transit-mint mt-0.5 leading-tight"
-                  style={{ fontFamily: "var(--font-inter)" }}
-                >
-                  Your workspace
-                </p>
-              </div>
-            </div>
-          </div>
+        {/* ── Row 2, Cols 1+2: Route line (full-width hero) ─────────────── */}
+        <div
+          style={{ gridColumn: "1 / -1" }}
+          className="py-1"
+        >
+          <RouteLineHero />
+        </div>
 
-          {/* Push remaining space + footer */}
-          <div className="flex-1" />
-          <p className="text-xs text-transit-muted mt-8">
+        {/* ── Row 3, Col 1: Below-origin context ────────────────────────── */}
+        <div className="pt-6 pr-16">
+          <p className="text-xs text-transit-muted">
             Already have an account?{" "}
             <a href="/login" className="text-transit-mint hover:underline">
               Log in
@@ -282,34 +310,23 @@ export function SetupForm() {
           </p>
         </div>
 
-        {/* ── Right column: form zone ──────────────────────────────────── */}
-        <div className="flex flex-col justify-center px-16 py-12">
-
-          {/* Destination marker — connects form to the transit map motif */}
-          <div className="flex items-center gap-3 mb-6">
+        {/* ── Row 3, Col 2: Form at destination ─────────────────────────── */}
+        {/*
+         * This column's left edge aligns with the destination dot above.
+         * The first form field label ("Name") sits directly below the dot.
+         */}
+        <div className="pt-5">
+          {/* Destination marker — echoes the route line's arrival point */}
+          <div className="flex items-center gap-2.5 mb-5">
             <span className="w-2.5 h-2.5 rounded-full bg-transit-mint ring-4 ring-transit-mint/20 flex-shrink-0" />
             <span className="text-[9px] font-mono tracking-[0.3em] uppercase text-transit-mint">
               Destination Workspace
             </span>
           </div>
 
-          {/* Heading */}
-          <h1
-            className="text-[clamp(2.2rem,3vw,3.25rem)] font-black leading-tight text-transit-periwinkle mb-2"
-            style={{ fontFamily: "var(--font-inter)" }}
-          >
-            Claim your
-            <br />
-            <span className="text-transit-mint">instance.</span>
-          </h1>
-          <p className="text-transit-muted text-sm mb-8 max-w-xs">
-            One owner. One workspace.
-          </p>
-
-          {/* Form — no card container; fields sit directly on the canvas */}
           <form
             onSubmit={handleSubmit}
-            className="flex flex-col gap-5 max-w-md w-full"
+            className="flex flex-col gap-5 w-full max-w-md"
             noValidate
           >
             <Field
@@ -351,13 +368,13 @@ export function SetupForm() {
               intent="primary"
               type="submit"
               disabled={loading}
-              className="mt-2 h-12 text-base"
+              className="mt-1 h-12 text-base"
             >
               {loading ? "Creating account..." : "Create account"}
             </Button>
           </form>
 
-          <p className="text-xs text-transit-muted mt-6">
+          <p className="text-xs text-transit-muted mt-5">
             First account becomes the owner automatically.
           </p>
         </div>
