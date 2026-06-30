@@ -41,7 +41,7 @@ export default async function PublicCollectionPage({
       <div className="relative z-10 max-w-xl mx-auto px-6 py-16">
         {/* Header */}
         <header className="mb-12">
-          <p className="text-[9px] font-mono tracking-[0.4em] uppercase text-[#565f89] mb-3">
+          <p className="text-[9px] font-mono tracking-[0.4em] uppercase text-[#828bbf] mb-3">
             Sentou · Collection
           </p>
           <h1
@@ -55,7 +55,7 @@ export default async function PublicCollectionPage({
             {collection.title}
             <span style={{ color: "#7ee787" }} aria-hidden="true">.</span>
           </h1>
-          <p className="text-[10px] font-mono mt-2" style={{ color: "#565f89" }}>
+          <p className="text-[10px] font-mono mt-2" style={{ color: "#828bbf" }}>
             {links.length} {links.length === 1 ? "stop" : "stops"} on this line
           </p>
         </header>
@@ -66,7 +66,7 @@ export default async function PublicCollectionPage({
             className="border rounded-lg py-12 text-center"
             style={{ borderColor: "#292e42" }}
           >
-            <p className="text-sm" style={{ color: "#565f89" }}>
+            <p className="text-sm" style={{ color: "#828bbf" }}>
               This collection has no stops yet.
             </p>
           </div>
@@ -121,7 +121,7 @@ export default async function PublicCollectionPage({
                     {/* Stop number label */}
                     <p
                       className="text-[8px] font-mono tracking-[0.35em] uppercase mb-1"
-                      style={{ color: "#565f89" }}
+                      style={{ color: "#828bbf" }}
                     >
                       Stop {String(idx + 1).padStart(2, "0")}
                     </p>
@@ -148,7 +148,7 @@ export default async function PublicCollectionPage({
 
                     <p
                       className="text-[10px] font-mono mt-0.5"
-                      style={{ color: "#565f89" }}
+                      style={{ color: "#828bbf" }}
                     >
                       /v/{link.slug}
                     </p>
