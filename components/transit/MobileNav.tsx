@@ -49,7 +49,7 @@ export function MobileNav({ userName, userEmail }: MobileNavProps) {
           aria-label={open ? "Close navigation" : "Open navigation"}
           aria-expanded={open}
           aria-controls="mobile-nav-drawer"
-          className="w-10 h-10 flex items-center justify-center rounded-lg border border-transit-border text-transit-periwinkle hover:border-transit-periwinkle/50 transition-colors duration-150"
+          className="w-11 h-11 flex items-center justify-center rounded-lg border border-transit-border text-transit-periwinkle hover:border-transit-periwinkle/50 transition-colors duration-150"
         >
           {open ? (
             /* X icon */
@@ -111,7 +111,7 @@ export function MobileNav({ userName, userEmail }: MobileNavProps) {
                 type="button"
                 onClick={close}
                 aria-label="Close navigation"
-                className="w-10 h-10 flex items-center justify-center rounded-lg border border-transit-border text-transit-periwinkle hover:border-transit-periwinkle/50 transition-colors duration-150"
+                className="w-11 h-11 flex items-center justify-center rounded-lg border border-transit-border text-transit-periwinkle hover:border-transit-periwinkle/50 transition-colors duration-150"
               >
                 <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
                   <path
