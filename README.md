@@ -101,7 +101,6 @@ The store reads and rewrites that whole JSON file on each change. That is fine f
 ```bash
 export SENTOU_SECRET=$(openssl rand -hex 32)
 export SENTOU_BASE_URL=https://sentou.yourdomain.com
-export SENTOU_OWNER_TOKEN=$(openssl rand -hex 32)
 docker compose up -d --build
 ```
 
@@ -111,22 +110,22 @@ The store lives in the `sentou-data` volume and survives restarts. Put a TLS-ter
 
 ```bash
 npm ci && npm run build
-SENTOU_SECRET=... SENTOU_BASE_URL=https://... SENTOU_OWNER_TOKEN=... npm run start
+SENTOU_SECRET=... SENTOU_BASE_URL=https://... npm run start
 ```
 
 ### Environment for an exposed instance
 
 | Variable | Why |
 | --- | --- |
-| `SENTOU_SECRET` | Signs and encrypts cookies. In production the app refuses any request that needs it until this is set. Generate with `openssl rand -hex 32`. |
-| `SENTOU_BASE_URL` | The public URL links are built from. Left unset, generated links point at `http://localhost:3000`. |
-| `SENTOU_OWNER_TOKEN` | Gates the publish, republish, revoke, stats, and forget endpoints. Required in production and whenever `SENTOU_BASE_URL` is a non-localhost host. Send it as `Authorization: Bearer <token>`. |
+| `SENTOU_SECRET` | Signs and encrypts session and access cookies. Required in production. Generate with `openssl rand -hex 32`. Outside production a random per-process key is used (dev sessions reset on restart). |
+| `SENTOU_BASE_URL` | The public URL links are built from. Left unset, generated links point at `http://localhost:3000`. Better Auth reads `BETTER_AUTH_URL` first and falls back to `SENTOU_BASE_URL`; set either one. |
+| (owner auth) | Owner endpoints (publish, republish, revoke, stats, forget) require authentication. Send a logged-in Better Auth session cookie or `Authorization: Bearer <key>` with a per-user API key. The first account to sign up becomes the owner; further accounts are invite-only. Mint an API key for automation or MCP use via `POST /api/keys`. The plaintext key is returned once and not stored. |
 
 Optional: `SENTOU_RESEND_KEY` + `SENTOU_EMAIL_FROM` make `verifyEmail` links a real boundary, and `SENTOU_RETENTION_DAYS` prunes stored viewer and tracking data older than N days.
 
 ## API
 
-Every endpoint takes and returns JSON. The write endpoints (everything except `/api/access*` and `/api/track`) require `Authorization: Bearer $SENTOU_OWNER_TOKEN` once you set that token, which you must on any exposed instance.
+Every endpoint takes and returns JSON. The write endpoints (publish, republish, revoke, stats, forget, keys) require authentication on any exposed or production instance. Send a logged-in Better Auth session cookie or `Authorization: Bearer <key>` with a per-user API key minted via `POST /api/keys`.
 
 ```bash
 # Publish, with the full gate. Every gate field is optional; omit them for a public link.
