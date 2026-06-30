@@ -580,41 +580,44 @@ export default async function LinkAnalyticsPage({
             </div>
           </section>
 
-          {/* Journey + versions */}
-          {totalOpens === 0 ? (
-            <NoTravelersState />
-          ) : (
-            <div className="flex flex-col md:grid md:grid-cols-[1fr_260px] gap-10 items-start">
-              {/* Traveler map */}
-              <section aria-label="Traveler journey">
-                <div className="flex items-center gap-2.5 mb-6">
-                  <span className="text-[9px] font-mono tracking-[0.35em] uppercase text-transit-muted">
-                    Traveler Map
-                  </span>
-                  <span
-                    className="flex-1 border-t border-transit-border/50"
-                    aria-hidden="true"
+          {/* Journey + versions. The version sidebar always renders (a never-opened link
+              still has a version thread); only the traveler map waits on a first open. */}
+          <div className="flex flex-col md:grid md:grid-cols-[1fr_260px] gap-10 items-start">
+            {/* Traveler map (or the empty state before any open) */}
+            <section aria-label="Traveler journey">
+              {totalOpens === 0 ? (
+                <NoTravelersState />
+              ) : (
+                <>
+                  <div className="flex items-center gap-2.5 mb-6">
+                    <span className="text-[9px] font-mono tracking-[0.35em] uppercase text-transit-muted">
+                      Traveler Map
+                    </span>
+                    <span
+                      className="flex-1 border-t border-transit-border/50"
+                      aria-hidden="true"
+                    />
+                    <span className="text-[9px] font-mono text-transit-muted/50">
+                      {uniqueViewers} {uniqueViewers === 1 ? "stop" : "stops"}
+                    </span>
+                  </div>
+                  <JourneyVisualization
+                    title={title}
+                    viewers={sortedViewers}
+                    verifiedEmails={verifiedEmails}
+                    status={status}
                   />
-                  <span className="text-[9px] font-mono text-transit-muted/50">
-                    {uniqueViewers} {uniqueViewers === 1 ? "stop" : "stops"}
-                  </span>
-                </div>
-                <JourneyVisualization
-                  title={title}
-                  viewers={sortedViewers}
-                  verifiedEmails={verifiedEmails}
-                  status={status}
-                />
-              </section>
+                </>
+              )}
+            </section>
 
-              {/* Version sidebar */}
-              <aside aria-label="Version history">
-                <div className="bg-transit-surface border border-transit-border rounded-lg p-5 sticky top-[105px]">
-                  <VersionTimeline versions={versionRows} />
-                </div>
-              </aside>
-            </div>
-          )}
+            {/* Version sidebar */}
+            <aside aria-label="Version history">
+              <div className="bg-transit-surface border border-transit-border rounded-lg p-5 sticky top-[105px]">
+                <VersionTimeline versions={versionRows} />
+              </div>
+            </aside>
+          </div>
         </div>
       )}
     </div>

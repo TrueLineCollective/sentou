@@ -7,6 +7,16 @@ export interface EmailSender {
   ): Promise<void>;
 }
 
+// Escape values interpolated into notification email HTML. The link title and viewer address
+// are user-controlled, so they must not be injected into the markup unescaped.
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
 const consoleSender: EmailSender = {
   async sendCode(to, code) {
     // Never write a recipient address or a live OTP to stdout on a real deploy: production
@@ -72,6 +82,8 @@ function resendSender(apiKey: string, from: string): EmailSender {
     },
     async sendOpenNotification(to, { linkTitle, viewer, openedAt }) {
       const title = linkTitle ?? "(untitled)";
+      const safeTitle = escapeHtml(title);
+      const safeViewer = escapeHtml(viewer);
       const openedDate = new Date(openedAt).toLocaleString("en-US", {
         month: "short", day: "numeric", year: "numeric",
         hour: "numeric", minute: "2-digit", timeZoneName: "short",
@@ -85,11 +97,11 @@ function resendSender(apiKey: string, from: string): EmailSender {
           html:
             `<div style="font-family:sans-serif;color:#1a1b26;background:#f9f9fb;padding:32px">` +
             `<p style="margin:0 0 8px;font-size:12px;letter-spacing:0.2em;text-transform:uppercase;color:#565f89;font-family:monospace">Sentou open alert</p>` +
-            `<h1 style="margin:0 0 24px;font-size:24px;font-weight:900;color:#1a1b26">"${title}"<span style="color:#2d8f3e">.</span></h1>` +
+            `<h1 style="margin:0 0 24px;font-size:24px;font-weight:900;color:#1a1b26">"${safeTitle}"<span style="color:#2d8f3e">.</span></h1>` +
             `<p style="margin:0 0 8px;font-size:15px;color:#1a1b26">Your link was opened.</p>` +
             `<table style="border-collapse:collapse;width:100%;margin-top:16px">` +
             `<tr><td style="padding:10px 0;border-top:1px solid #e4e7f0;font-size:12px;color:#565f89;font-family:monospace;text-transform:uppercase;letter-spacing:0.15em">Viewer</td>` +
-            `<td style="padding:10px 0;border-top:1px solid #e4e7f0;font-size:14px;color:#1a1b26;text-align:right">${viewer}</td></tr>` +
+            `<td style="padding:10px 0;border-top:1px solid #e4e7f0;font-size:14px;color:#1a1b26;text-align:right">${safeViewer}</td></tr>` +
             `<tr><td style="padding:10px 0;border-top:1px solid #e4e7f0;font-size:12px;color:#565f89;font-family:monospace;text-transform:uppercase;letter-spacing:0.15em">Opened</td>` +
             `<td style="padding:10px 0;border-top:1px solid #e4e7f0;font-size:14px;color:#1a1b26;text-align:right">${openedDate}</td></tr>` +
             `</table>` +
