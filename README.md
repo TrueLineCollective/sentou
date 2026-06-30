@@ -20,6 +20,19 @@ Sharing something you made in Claude usually means one of two compromises: drop 
 
 This is early. The core works and is covered by tests, but a good part of the roadmap below is still ahead. I build it in the open and keep this page honest about what is shipped and what is still planned.
 
+## How you use it
+
+Sentou is for sharing something you made with specific people, not the whole internet. If you only need a public URL, any static host does that for free. Sentou is for the rest: deciding who can open it, seeing who actually did and for how long, and keeping your content and your viewer list on a server you own.
+
+1. **Deploy it on a server with a public address** (a small VPS, a container host, your company's box). This is what makes the links reachable by other people. Running it on `localhost` is just for trying it out, since a `localhost` link only works on your own machine.
+2. **Create the artifact.** In the dashboard, paste HTML or upload an `.html` file, then set the gate: require an email, restrict to a company domain, add an expiry, turn on tracking.
+3. **Publish.** You get a link like `https://sentou.yourdomain.com/v/abc123`.
+4. **Send the link however you normally do**, by email, Teams, Slack, or a text. Sentou creates the link; you share it.
+5. **They open it in their browser and interact with it.** If you gated it, they enter their email (or a one-time code) first. You watch the opens and dwell time from your dashboard.
+6. **Change it any time.** Edit and republish, and the same link updates, so everyone you already sent it to sees the latest. No resending.
+
+Because it is self-hosted, you run it on your own infrastructure. That is the privacy wedge, your content and your viewer list never leave your server, and it is the one real setup step. A hosted version that skips the deploy is on the roadmap.
+
 ## What it does today
 
 - A real web dashboard for managing your links: a Routes board (all your links, with open counts and live/expired/revoked status), a Compose screen with a sandboxed live preview, per-link analytics with a Traveler Map showing who opened what and for how long, plus Collections, Team, Settings, and Account screens.
