@@ -28,14 +28,17 @@ export function isAdmin(actor: Actor): boolean {
   return actor.role === "owner" || actor.role === "admin";
 }
 
-// Resolves the actor's role, scoped to the workspace org (oldest by createdAt,
-// then id as tiebreaker). Defaults to "member" if the user has no membership.
-// Using the workspace org prevents a user from gaining elevated rights by
-// joining or creating a second org.
-export function resolveRole(
+// Resolves the user's membership role in the workspace org (oldest by createdAt,
+// then id as tiebreaker), or null when the user has no membership row there.
+// Scoping to the workspace org prevents a user from gaining elevated rights by
+// joining or creating a second org. null is the load-bearing signal for
+// authorization: a removed member, an orphaned invite (signed up but never
+// accepted), and a race-losing "second owner" all have no row here and so must
+// not resolve to an authorized actor.
+export function resolveMembership(
   db: BetterSQLite3Database<typeof schema>,
   userId: string,
-): string {
+): string | null {
   const workspaceOrg = db
     .select({ id: schema.organization.id })
     .from(schema.organization)
@@ -43,7 +46,7 @@ export function resolveRole(
     .limit(1)
     .get();
 
-  if (!workspaceOrg) return "member";
+  if (!workspaceOrg) return null;
 
   const memberRow = db
     .select({ role: schema.member.role })
@@ -56,7 +59,18 @@ export function resolveRole(
     )
     .get();
 
-  return memberRow?.role ?? "member";
+  return memberRow?.role ?? null;
+}
+
+// Back-compat helper for the dashboard pages that only need a role string to
+// compute isAdmin: a non-member reads as "member" (never elevated), which is
+// harmless there. Authorization decisions must use resolveMembership /
+// resolveActor, which fail closed on a missing membership.
+export function resolveRole(
+  db: BetterSQLite3Database<typeof schema>,
+  userId: string,
+): string {
+  return resolveMembership(db, userId) ?? "member";
 }
 
 // Internal implementation — shared between the factory (tests) and the
@@ -71,7 +85,11 @@ async function resolveActor(
   // signed session cookie and returns the user + session or null.
   const session = await authInst.api.getSession({ headers: req.headers });
   if (session?.user?.id) {
-    const role = resolveRole(db, session.user.id);
+    // Require a live workspace membership. A valid session for a removed member
+    // (or an account that signed up but never accepted its invite) must NOT be
+    // an authorized actor, so removing someone actually revokes their access.
+    const role = resolveMembership(db, session.user.id);
+    if (!role) return null;
     return { userId: session.user.id, role };
   }
 
@@ -99,7 +117,10 @@ async function resolveActor(
     .where(eq(schema.apiKey.id, keyRow.id))
     .run();
 
-  const role = resolveRole(db, keyRow.userId);
+  // Same membership requirement as the session path: a key belonging to a
+  // removed member resolves to no actor, so revoking membership revokes the key.
+  const role = resolveMembership(db, keyRow.userId);
+  if (!role) return null;
   return { userId: keyRow.userId, role };
 }
 
