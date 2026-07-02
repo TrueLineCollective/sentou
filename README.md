@@ -117,7 +117,7 @@ Sentou ships an MCP server, so you can publish without leaving a Claude session.
 claude mcp add sentou -- npx tsx "$(pwd)/mcp/server.ts"
 ```
 
-Claude gets two tools, `publish_artifact(html)` and `republish(id, html)`. If your instance is not on localhost, or you need to authenticate, pass both through the MCP server's environment, otherwise a hardened instance answers the publish call with a bare `401`. Generate a key from the Account screen or with `POST /api/keys` (the key value is returned once):
+Claude gets two tools, `publish_artifact` and `republish(id, html)`. `publish_artifact` takes the HTML plus optional gating and tracking, so you can ask for a gated, tracked link in one step ("publish this, require a verified email from acme.com, and track opens"): `title`, `requireEmail`, `verifyEmail`, `allowedDomains`, `expiresAt`, and `track`. With none of them set the link is public, untracked, and untitled. `republish` swaps in new HTML on an existing link and leaves its gate untouched. If your instance is not on localhost, or you need to authenticate, pass both through the MCP server's environment, otherwise a hardened instance answers the publish call with a bare `401`. Generate a key from the Account screen or with `POST /api/keys` (the key value is returned once):
 
 ```bash
 claude mcp add sentou \
