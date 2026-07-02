@@ -5,7 +5,7 @@ import path from "node:path";
 import { eq } from "drizzle-orm";
 import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 import { getDb } from "@/lib/db/client";
-import { createLink } from "@/lib/links";
+import { createLink, recordOpen } from "@/lib/links";
 import { getStore } from "@/lib/server-store";
 import * as schema from "@/lib/db/schema";
 import { maybeNotifyOpen } from "@/lib/notifications";
@@ -277,5 +277,23 @@ describe("notification_prefs — DB read/write", () => {
     const updated = getPrefs(userId);
     expect(updated?.emailOnOpen).toBe(false);
     expect(updated?.webhookUrl).toBeNull();
+  });
+});
+
+// recordOpen returns firstOpen (the flag /api/track uses to decide whether to notify). With
+// per-browser anonymous ids, each distinct browser is a first open (one notification each) while
+// a refresh by the same browser is not — the fix for anonymous notifications collapsing to one.
+describe("recordOpen first-open gating for anonymous viewers", () => {
+  it("treats distinct per-browser anon viewers as separate first opens, and a repeat as not first", async () => {
+    const store = getStore();
+    const link = await createLink(store, "<h1>x</h1>", undefined, true);
+    const open = (viewer: string, eventId: string) =>
+      recordOpen(store, { eventId, linkId: link.id, viewer, version: 1, openedAt: new Date().toISOString(), dwellMs: 0 });
+
+    // Two different browsers → both are a first open → both would notify.
+    expect(await open("anon:browser-a", "e1")).toBe(true);
+    expect(await open("anon:browser-b", "e2")).toBe(true);
+    // Same browser opening again (a refresh: new page-load, new eventId) → not a first open.
+    expect(await open("anon:browser-a", "e3")).toBe(false);
   });
 });

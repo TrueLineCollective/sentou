@@ -48,7 +48,10 @@ function shortDate(dateStr: string): string {
 
 function displayViewer(viewer: string, verifiedEmails: Set<string>): string {
   if (verifiedEmails.has(viewer)) return viewer;
-  const prefix = viewer.replace(/[^a-z0-9]/gi, "").slice(0, 8) || viewer.slice(0, 8);
+  // Anonymous viewers are keyed "anon" (legacy) or "anon:<per-browser id>". Strip the prefix
+  // before shortening so distinct browsers read as distinct anonymous viewers (anon-<id>).
+  const id = viewer.startsWith("anon:") ? viewer.slice(5) : viewer;
+  const prefix = id.replace(/[^a-z0-9]/gi, "").slice(0, 8) || "viewer";
   return `anon-${prefix}`;
 }
 
