@@ -1,35 +1,17 @@
-import { eq, asc, and } from "drizzle-orm";
+import { eq, asc } from "drizzle-orm";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { getDb } from "@/lib/db/client";
 import * as schema from "@/lib/db/schema";
 import { resolveRole, isAdmin } from "@/lib/auth-session";
+import { listPendingInvitations, type TeamMember } from "@/lib/team";
 import { TeamPanel } from "@/components/transit/TeamPanel";
 
 export const dynamic = "force-dynamic";
 
-// ---------------------------------------------------------------------------
-// Types passed to the client panel — all Dates serialized to ISO strings
-// ---------------------------------------------------------------------------
-
-export type TeamMember = {
-  memberId: string;
-  userId: string;
-  role: string;
-  joinedAt: string;
-  name: string;
-  email: string;
-};
-
-export type PendingInvitation = {
-  id: string;
-  email: string;
-  role: string;
-  expiresAt: string;
-  createdAt: string;
-  inviterName: string;
-};
+// Types passed to the client panel — all Dates serialized to ISO strings.
+export type { TeamMember, PendingInvitation } from "@/lib/team";
 
 // ---------------------------------------------------------------------------
 // TeamPage — server component; gates via session + resolves data
@@ -72,26 +54,9 @@ export default async function TeamPage() {
     .orderBy(asc(schema.member.createdAt))
     .all();
 
-  // Pending invitations with inviter name
-  const rawInvitations = db
-    .select({
-      id: schema.invitation.id,
-      email: schema.invitation.email,
-      role: schema.invitation.role,
-      expiresAt: schema.invitation.expiresAt,
-      createdAt: schema.invitation.createdAt,
-      inviterName: schema.user.name,
-    })
-    .from(schema.invitation)
-    .innerJoin(schema.user, eq(schema.invitation.inviterId, schema.user.id))
-    .where(
-      and(
-        eq(schema.invitation.organizationId, workspaceOrg.id),
-        eq(schema.invitation.status, "pending"),
-      ),
-    )
-    .orderBy(asc(schema.invitation.createdAt))
-    .all();
+  // Pending invitations — ADMIN/OWNER ONLY. The invitation id is the acceptance token and
+  // every prop reaches the client via the RSC payload, so non-admins must never receive one.
+  const invitations = listPendingInvitations(db, workspaceOrg.id, actorIsAdmin);
 
   // Serialize Dates to ISO strings for client component boundary
   const members: TeamMember[] = rawMembers.map((m) => ({
@@ -101,15 +66,6 @@ export default async function TeamPage() {
     joinedAt: m.joinedAt instanceof Date ? m.joinedAt.toISOString() : String(m.joinedAt),
     name: m.name,
     email: m.email,
-  }));
-
-  const invitations: PendingInvitation[] = rawInvitations.map((i) => ({
-    id: i.id,
-    email: i.email,
-    role: i.role ?? "member",
-    expiresAt: i.expiresAt instanceof Date ? i.expiresAt.toISOString() : String(i.expiresAt),
-    createdAt: i.createdAt instanceof Date ? i.createdAt.toISOString() : String(i.createdAt),
-    inviterName: i.inviterName,
   }));
 
   return (
