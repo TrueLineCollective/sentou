@@ -134,7 +134,11 @@ describe("viewer page", () => {
     const token = html.match(/var t="([^"]+)"/)![1];
     const claim = verifyTrackToken(token)!;
     expect(claim.linkId).toBe(link.id);
-    expect(claim.viewer).toBe("anon"); // no access cookie in this render
+    // No access cookie in this render, so the viewer is anonymous. It is keyed by a per-browser
+    // id ("anon:<id>") rather than the bare "anon" so distinct viewers notify independently.
+    expect(claim.viewer.startsWith("anon")).toBe(true);
+    // The script also persists that per-browser id as a cookie so a refresh dedupes.
+    expect(html).toContain("sentou_vid=");
   });
 
   const formGate = { requireEmail: true, allowedDomains: null, expiresAt: null, revoked: false };

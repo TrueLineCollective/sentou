@@ -33,4 +33,18 @@ describe("trackingContext", () => {
     const ctx = trackingContext(link, { linkId: "some-other-link-id", email: "a@x.com" }) as { track: true; token: string };
     expect(verifyTrackToken(ctx.token)!.viewer).toBe("anon");
   });
+  it("keys an anonymous viewer by the per-browser id so distinct browsers are distinct viewers", async () => {
+    const link = await createLink(createMemoryStore(), "<h1>x</h1>", undefined, true);
+    const a = trackingContext(link, null, "browser-a") as { track: true; token: string };
+    const b = trackingContext(link, null, "browser-b") as { track: true; token: string };
+    expect(verifyTrackToken(a.token)!.viewer).toBe("anon:browser-a");
+    expect(verifyTrackToken(b.token)!.viewer).toBe("anon:browser-b");
+    // Distinct browsers must map to distinct viewers, or the owner's open-notification collapses.
+    expect(verifyTrackToken(a.token)!.viewer).not.toBe(verifyTrackToken(b.token)!.viewer);
+  });
+  it("ignores the visitor id for a VERIFIED viewer (email still wins)", async () => {
+    const link = await createLink(createMemoryStore(), "<h1>x</h1>", undefined, true);
+    const ctx = trackingContext(link, { linkId: link.id, email: "a@x.com", verified: true }, "browser-a") as { track: true; token: string };
+    expect(verifyTrackToken(ctx.token)!.viewer).toBe("a@x.com");
+  });
 });

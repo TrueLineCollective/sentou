@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { getLinkBySlug } from "@/lib/links";
@@ -360,7 +361,15 @@ export default async function ViewerPage({
   // ── Viewer: artifact in sandboxed iframe ───────────────────────────────────
   // STRUCTURE: main's DIRECT children must be [maybe-notice-div, iframe, maybe-script].
   // No extra wrappers here — tests verify direct siblings to prove sandbox isolation.
-  const tracking = trackingContext(link, claim);
+  //
+  // Per-browser id for anonymous open-notification dedup. A server component cannot set a
+  // cookie, so mint one when absent, use it for this render's tracking token, and persist it
+  // client-side in the tracking script below. It is only a dedup bucket (not an identity or a
+  // security token), so a client-set, non-httpOnly cookie is fine; tampering only affects that
+  // viewer's own notification dedup. Only meaningful when tracking is on.
+  const VISITOR_COOKIE = "sentou_vid";
+  const visitorId = cookieStore.get(VISITOR_COOKIE)?.value || randomUUID();
+  const tracking = trackingContext(link, claim, visitorId);
   const iframe = (
     <iframe
       title="artifact"
@@ -386,6 +395,8 @@ export default async function ViewerPage({
         <script
           dangerouslySetInnerHTML={{
             __html:
+              // Persist the per-browser id so a refresh reuses it and dedupes; ~1yr, lax.
+              `document.cookie=${JSON.stringify(`${VISITOR_COOKIE}=${visitorId}; path=/; max-age=31536000; samesite=lax`)};` +
               `(function(){var t=${JSON.stringify(tracking.token)},s=Date.now();` +
               `function send(type,extra){try{navigator.sendBeacon('/api/track',new Blob([JSON.stringify(Object.assign({token:t,type:type},extra||{}))],{type:'application/json'}))}catch(e){}}` +
               `send('open');` +
