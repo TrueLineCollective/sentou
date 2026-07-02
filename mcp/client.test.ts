@@ -23,6 +23,41 @@ describe("mcp http client", () => {
     );
   });
 
+  it("forwards gate + tracking + title options into the publish body", async () => {
+    const fetchMock = vi.fn(async () =>
+      new Response(JSON.stringify({ id: "a", slug: "s", url: "http://x/v/s", version: 1 })),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    await publishArtifact("<h1>x</h1>", {
+      title: "Q3 deck",
+      verifyEmail: true,
+      allowedDomains: ["acme.com"],
+      expiresAt: "2030-01-01T00:00:00.000Z",
+      track: true,
+    });
+    const init = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    const body = JSON.parse(init[1].body as string);
+    expect(body).toMatchObject({
+      html: "<h1>x</h1>",
+      title: "Q3 deck",
+      verifyEmail: true,
+      allowedDomains: ["acme.com"],
+      expiresAt: "2030-01-01T00:00:00.000Z",
+      track: true,
+    });
+  });
+
+  it("sends only html when no options are given (link stays open + untracked)", async () => {
+    const fetchMock = vi.fn(async () =>
+      new Response(JSON.stringify({ id: "a", slug: "s", url: "http://x/v/s", version: 1 })),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    await publishArtifact("<h1>x</h1>");
+    const init = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    const body = JSON.parse(init[1].body as string);
+    expect(body).toEqual({ html: "<h1>x</h1>" });
+  });
+
   it("republishArtifact posts to the republish route and returns the version", async () => {
     const fetchMock = vi.fn(async () =>
       new Response(JSON.stringify({ id: "a", slug: "s", url: "http://x/v/s", version: 2 })),
