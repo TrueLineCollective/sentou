@@ -3,10 +3,11 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { randomUUID, createHash } from "node:crypto";
+import { eq } from "drizzle-orm";
 import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 import { getDb } from "@/lib/db/client";
 import { makeAuth } from "@/lib/auth";
-import { makeGetActor } from "@/lib/auth-session";
+import { makeGetActor, resolveMembership } from "@/lib/auth-session";
 import * as schema from "@/lib/db/schema";
 
 // better-auth requires BETTER_AUTH_SECRET.
@@ -160,5 +161,100 @@ describe("getActor", () => {
       }),
     );
     expect(actor).toBeNull();
+  });
+
+  it("returns null for a valid API key whose user has no workspace membership", async () => {
+    // A user + key with NO member row (e.g. an orphaned invite: signed up but
+    // never accepted). The key is valid and enabled but must not authorize.
+    env.db.insert(schema.organization).values({
+      id: randomUUID(), name: "Workspace", slug: "workspace", createdAt: new Date(),
+    }).run();
+    const userId = randomUUID();
+    env.db.insert(schema.user).values({
+      id: userId, name: "Nomember", email: "nomember@example.com",
+      emailVerified: true, createdAt: new Date(), updatedAt: new Date(),
+    }).run();
+    const rawKey = "sentou_nomember_" + randomUUID().replace(/-/g, "");
+    env.db.insert(schema.apiKey).values({
+      id: randomUUID(), userId, name: "no-member key",
+      keyHash: createHash("sha256").update(rawKey).digest("hex"),
+      prefix: rawKey.slice(0, 8), createdAt: new Date(), enabled: true,
+    }).run();
+
+    const actor = await env.getActor(
+      new Request("http://t/api/publish", {
+        headers: { authorization: `Bearer ${rawKey}` },
+      }),
+    );
+    expect(actor).toBeNull();
+  });
+
+  it("stops authorizing an API key once the member's row is removed", async () => {
+    // Seed org + member + key, confirm the key authorizes, then delete the
+    // member row (what removeMember does) and confirm the key no longer does.
+    const orgId = randomUUID();
+    env.db.insert(schema.organization).values({
+      id: orgId, name: "Workspace", slug: "workspace", createdAt: new Date(),
+    }).run();
+    const userId = randomUUID();
+    env.db.insert(schema.user).values({
+      id: userId, name: "Bob", email: "bob@example.com",
+      emailVerified: true, createdAt: new Date(), updatedAt: new Date(),
+    }).run();
+    env.db.insert(schema.member).values({
+      id: randomUUID(), organizationId: orgId, userId, role: "member", createdAt: new Date(),
+    }).run();
+    const rawKey = "sentou_removed_" + randomUUID().replace(/-/g, "");
+    env.db.insert(schema.apiKey).values({
+      id: randomUUID(), userId, name: "bob key",
+      keyHash: createHash("sha256").update(rawKey).digest("hex"),
+      prefix: rawKey.slice(0, 8), createdAt: new Date(), enabled: true,
+    }).run();
+
+    const request = () =>
+      new Request("http://t/api/publish", { headers: { authorization: `Bearer ${rawKey}` } });
+
+    const before = await env.getActor(request());
+    expect(before?.role).toBe("member");
+
+    env.db.delete(schema.member).where(eq(schema.member.userId, userId)).run();
+
+    const after = await env.getActor(request());
+    expect(after).toBeNull();
+  });
+});
+
+describe("resolveMembership", () => {
+  let env: ReturnType<typeof makeTestEnv>;
+  beforeEach(() => {
+    env = makeTestEnv();
+  });
+
+  it("returns null when the user has no member row in the workspace org", () => {
+    env.db.insert(schema.organization).values({
+      id: randomUUID(), name: "Workspace", slug: "workspace", createdAt: new Date(),
+    }).run();
+    const userId = randomUUID();
+    env.db.insert(schema.user).values({
+      id: userId, name: "Nobody", email: "nobody@example.com",
+      emailVerified: true, createdAt: new Date(), updatedAt: new Date(),
+    }).run();
+    expect(resolveMembership(env.db, userId)).toBeNull();
+  });
+
+  it("returns the role when the user is a member of the workspace org", () => {
+    const orgId = randomUUID();
+    env.db.insert(schema.organization).values({
+      id: orgId, name: "Workspace", slug: "workspace", createdAt: new Date(),
+    }).run();
+    const userId = randomUUID();
+    env.db.insert(schema.user).values({
+      id: userId, name: "Owner", email: "owner@example.com",
+      emailVerified: true, createdAt: new Date(), updatedAt: new Date(),
+    }).run();
+    env.db.insert(schema.member).values({
+      id: randomUUID(), organizationId: orgId, userId, role: "owner", createdAt: new Date(),
+    }).run();
+    expect(resolveMembership(env.db, userId)).toBe("owner");
   });
 });

@@ -118,9 +118,17 @@ async function setupWithSessions(db: ReturnType<typeof getDb>) {
   expect(bobResp.status).toBe(200);
   const bobCookie = extractCookie(bobResp.headers.get("set-cookie"));
 
-  // Capture Alice's userId from the users table (only Alice was first)
+  // Capture both userIds from the users table.
   const users = db.select({ id: schema.user.id, email: schema.user.email }).from(schema.user).all();
   const aliceRow = users.find((u) => u.email === "alice@example.com");
+  const bobRow = users.find((u) => u.email === "bob@example.com");
+
+  // Sign-up alone does not create a membership; acceptInvitation does. Insert Bob's member
+  // row directly to represent an accepted invite, so he is a real workspace member (which is
+  // what these IDOR tests intend). Without a membership row he is not an authorized actor.
+  db.insert(schema.member).values({
+    id: randomUUID(), organizationId: orgId, userId: bobRow!.id, role: "member", createdAt: new Date(),
+  }).run();
 
   return { aliceCookie: aliceCookie!, bobCookie: bobCookie!, aliceUserId: aliceRow!.id };
 }
@@ -472,6 +480,33 @@ describe("null-owner link — member blocked, admin allowed (fix 1)", () => {
       headers: { cookie: `better-auth.session_token=${bobCookie}` },
     }));
     expect(res.status).toBe(403);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Removing a member revokes their access at the endpoint layer
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("removed member loses endpoint access", () => {
+  it("a member's key goes from 403 (authed, not owner) to 401 (unauthed) after removal, in production", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    const { db, userB, keyB, ownedLinkId } = setupTwoActors();
+    const { GET: statsGet } = await import("@/app/api/stats/route");
+
+    // While a member, Bob is authenticated but not the owner of Alice's link → 403.
+    const before = await statsGet(new Request(`http://t/api/stats?id=${ownedLinkId}`, {
+      headers: { authorization: `Bearer ${keyB}` },
+    }));
+    expect(before.status).toBe(403);
+
+    // Admin removes Bob: delete his membership row (what removeMember does).
+    db.delete(schema.member).where(eq(schema.member.userId, userB)).run();
+
+    // Bob's key no longer resolves to an actor → requireOwner fails closed → 401.
+    const after = await statsGet(new Request(`http://t/api/stats?id=${ownedLinkId}`, {
+      headers: { authorization: `Bearer ${keyB}` },
+    }));
+    expect(after.status).toBe(401);
   });
 });
 
